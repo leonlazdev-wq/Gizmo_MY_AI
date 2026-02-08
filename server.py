@@ -1,14 +1,14 @@
 # patched server.py
 # -----------------
-# Usage: BEFORE pasting this file, BACKUP the original server.py to server.py.bak
-#        (cp server.py server.py.bak)
+# BEFORE replacing server.py: run:
+#   cp server.py server.py.bak
 #
 # This wrapper:
-# 1) ensures a compatible Gradio is installed (best-effort)
-# 2) monkeypatches theme Base.set to tolerate/ignore unexpected kwargs
-# 3) executes the original server.py from server.py.bak so the repo's original behavior continues
+# 1) ensures gradio==3.41.2 is installed (best-effort)
+# 2) monkeypatches theme classes' set(...) so unexpected kwargs are ignored
+# 3) executes the original server.py from server.py.bak
 #
-# NOTE: If you forget to create server.py.bak, this script will exit with instructions.
+# If the backup (server.py.bak) is missing the wrapper exits with instructions.
 
 import os
 import sys
@@ -20,15 +20,11 @@ import traceback
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKUP = os.path.join(HERE, "server.py.bak")
 
-def ensure_backup_exists():
-    if not os.path.exists(BACKUP):
-        print("ERROR: Backup not found:", BACKUP)
-        print("Please first back up the original server.py with:")
-        print("  cp server.py server.py.bak")
-        sys.exit(1)
+def exit_with(msg):
+    print(msg, file=sys.stderr)
+    sys.exit(1)
 
 def pip_install(packages):
-    """Run pip install for packages (list or str). Returns True on success, False otherwise."""
     try:
         cmd = [sys.executable, "-m", "pip", "install", "--quiet"] + (packages if isinstance(packages, list) else [packages])
         print("Running:", " ".join(cmd))
@@ -39,131 +35,160 @@ def pip_install(packages):
         return False
 
 def ensure_gradio_pinned():
-    """Ensure a compatible Gradio version is available (best-effort)."""
+    """Ensure gradio 3.41.2 is installed (best-effort)."""
     try:
         import gradio as gr
         ver = getattr(gr, "__version__", None)
         print("Found gradio version:", ver)
-        # If version appears incompatible, try to pin. We treat 3.41.2 as compatible.
         if not ver or not ver.startswith("3.41"):
-            print("Attempting to pin gradio to 3.41.2 (compatible with this UI).")
-            # uninstall possible conflicting packages first (best-effort)
+            print("Attempting to pin gradio to 3.41.2")
             try:
                 subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "gradio", "gradio_client"], check=False)
             except Exception:
                 pass
-            ok = pip_install(["gradio==3.41.2", "gradio_client==0.5.0"])
-            if ok:
-                # reload gradio module
+            success = pip_install(["gradio==3.41.2", "gradio_client==0.5.0"])
+            if success:
+                # attempt to reload gradio
                 try:
-                    import importlib
-                    importlib.invalidate_caches()
                     if "gradio" in sys.modules:
                         del sys.modules["gradio"]
-                    import gradio as gr2
-                    print("Gradio pinned and reloaded, version:", getattr(gr2, "__version__", None))
+                    import importlib
+                    gr2 = importlib.import_module("gradio")
+                    print("Reloaded gradio version:", getattr(gr2, "__version__", None))
                 except Exception as e:
-                    print("Warning: could not reload gradio after install:", e)
+                    print("Warning: reloading gradio failed:", e)
             else:
-                print("Warning: failed to pin gradio; continuing (may still fail).")
+                print("Warning: pip install gradio failed (continuing, may error later)")
     except Exception:
-        # no gradio installed
-        print("Gradio not importable; attempting to install the required version.")
+        # not installed
+        print("gradio not importable, attempting to install pinned version")
         pip_install(["gradio==3.41.2", "gradio_client==0.5.0"])
-        # don't necessarily reload; proceed to monkeypatch attempt
 
-def safe_monkeypatch_theme_set():
+def wrap_method_allow_extra_kwargs(orig):
+    """Return wrapper that calls orig and, if TypeError about unexpected kwargs occurs,
+       filters kwargs to signature-allowed keys and retries."""
+    def new(self, *args, **kwargs):
+        try:
+            return orig(self, *args, **kwargs)
+        except TypeError as e:
+            # If TypeError mentions unexpected keyword, try to filter kwargs to allowed ones
+            try:
+                sig = inspect.signature(orig)
+                allowed = {k: v for k, v in kwargs.items() if k in sig.parameters}
+                return orig(self, *args, **allowed)
+            except Exception:
+                # re-raise original
+                raise
+    return new
+
+def aggressive_monkeypatch_theme_set():
     """
-    Monkeypatch Gradio theme classes' set(...) method so that unexpected keyword arguments are ignored.
-    This wraps the original set method and, if it raises TypeError due to unexpected kwargs,
-    it filters kwargs to the subset accepted by the original function signature.
+    Aggressively search the gradio package for classes with a `set` method and wrap them
+    with a tolerant wrapper so unexpected theme kwargs are ignored instead of raising.
     """
     try:
         import gradio
     except Exception as e:
-        print("Gradio import failed for monkeypatching:", e)
+        print("Could not import gradio for monkeypatching:", e)
         return
 
-    tried = []
-    def wrap_set(orig):
-        def new_set(self, *args, **kwargs):
+    patched = []
+    try:
+        # Walk gradio package attributes and submodules
+        for attr_name in dir(gradio):
             try:
-                return orig(self, *args, **kwargs)
-            except TypeError as e:
-                # Attempt to filter kwargs by signature parameters
-                try:
-                    sig = inspect.signature(orig)
-                    allowed = {k: v for k, v in kwargs.items() if k in sig.parameters}
-                    return orig(self, *args, **allowed)
-                except Exception:
-                    # Give original error if filtering fails
-                    raise
-        return new_set
-
-    # Candidate modules / classes where Base/Theme classes may live across gradio versions
-    candidates = [
-        ("gradio.themes", "Base"),
-        ("gradio.themes", "Theme"),
-        ("gradio.themes.base", "Base"),
-        ("gradio.themes.base", "Theme"),
-        ("gradio.themes.default", "DefaultTheme"),
-    ]
-
-    for modpath, clsname in candidates:
-        try:
-            mod = importlib.import_module(modpath)
-            if hasattr(mod, clsname):
-                cls = getattr(mod, clsname)
-                if hasattr(cls, "set"):
+                attr = getattr(gradio, attr_name)
+            except Exception:
+                continue
+            # If module, try to import its attributes
+            if hasattr(attr, "__dict__"):
+                submod = attr
+                # iterate class-like attributes inside
+                for k, v in list(submod.__dict__.items()):
                     try:
-                        orig = cls.set
-                        cls.set = wrap_set(orig)
-                        tried.append(f"{modpath}.{clsname}")
-                    except Exception as e:
-                        print("Could not wrap", modpath, clsname, ":", e)
-        except Exception:
-            # module not present in this gradio version; ignore
-            continue
+                        if inspect.isclass(v) and hasattr(v, "set") and callable(getattr(v, "set", None)):
+                            orig = getattr(v, "set")
+                            # avoid double-wrapping
+                            if getattr(orig, "__wrapped_by_tolerant__", False):
+                                continue
+                            wrapped = wrap_method_allow_extra_kwargs(orig)
+                            wrapped.__wrapped_by_tolerant__ = True
+                            try:
+                                setattr(v, "set", wrapped)
+                                patched.append(f"{submod.__name__}.{k}")
+                            except Exception as e:
+                                # fallback: try set on the function object
+                                pass
+                    except Exception:
+                        continue
+        # Also attempt common theme module names
+        candidate_modules = [
+            "gradio.themes",
+            "gradio.themes.base",
+            "gradio.themes.default",
+            "gradio.themes.material",
+            "gradio.themes.base_theme",
+        ]
+        for modname in candidate_modules:
+            try:
+                m = importlib.import_module(modname)
+                for k, v in list(m.__dict__.items()):
+                    if inspect.isclass(v) and hasattr(v, "set") and callable(getattr(v, "set")):
+                        orig = getattr(v, "set")
+                        if getattr(orig, "__wrapped_by_tolerant__", False):
+                            continue
+                        wrapped = wrap_method_allow_extra_kwargs(orig)
+                        wrapped.__wrapped_by_tolerant__ = True
+                        setattr(v, "set", wrapped)
+                        patched.append(f"{modname}.{k}")
+            except Exception:
+                continue
+    except Exception as e:
+        print("Unexpected error while attempting to monkeypatch gradio theme classes:", e)
 
-    if tried:
-        print("Patched theme.set on:", tried)
+    if patched:
+        print("Patched theme.set on:", patched)
     else:
-        print("No theme class patched (no matching classes found).")
+        print("No theme classes patched (maybe already compatible or different gradio internals).")
 
-def execute_original_server():
-    """Load and exec the backed-up original server.py in the same globals so behavior is preserved."""
+def execute_backup_server():
+    """Execute the backed-up original server script in its own globals."""
+    if not os.path.exists(BACKUP):
+        print("Backup server.py not found:", BACKUP)
+        print("Make sure you created a backup before replacing. Command:")
+        print("  cp server.py server.py.bak")
+        sys.exit(1)
+
     print("Executing original server from backup:", BACKUP)
     with open(BACKUP, "r", encoding="utf-8") as f:
-        code = f.read()
-    # Execute in a fresh globals dict but preserve common names
+        src = f.read()
     server_globals = {
         "__name__": "__main__",
         "__file__": BACKUP,
         "__package__": None,
-        "__cached__": None,
-        "__doc__": None,
     }
-    # copy current environment variables in case original relies on them
-    server_globals.update(globals())
     try:
-        exec(compile(code, BACKUP, "exec"), server_globals)
+        exec(compile(src, BACKUP, "exec"), server_globals)
     except SystemExit:
-        # allow normal sys.exit from original to terminate
         raise
     except Exception:
-        print("ERROR: original server crashed after compatibility fixes. Traceback below:")
+        print("Original server crashed after compatibility patches. Traceback:")
         traceback.print_exc()
-        # propagate error code
         sys.exit(1)
 
 def main():
-    ensure_backup_exists()
-    # Step 1: ensure a compatible gradio is available (best-effort)
+    # 1) Ensure backup exists (the wrapper requires it)
+    if not os.path.exists(BACKUP):
+        exit_with("ERROR: server.py.bak not found. BACKUP the original server.py first:\n  cp server.py server.py.bak")
+
+    # 2) Pin gradio (best-effort)
     ensure_gradio_pinned()
-    # Step 2: apply monkeypatch to tolerate unexpected theme kwargs
-    safe_monkeypatch_theme_set()
-    # Step 3: execute original server main logic from backup
-    execute_original_server()
+
+    # 3) Monkeypatch theme.set aggressively
+    aggressive_monkeypatch_theme_set()
+
+    # 4) Execute the original server code (from backup)
+    execute_backup_server()
 
 if __name__ == "__main__":
     main()
