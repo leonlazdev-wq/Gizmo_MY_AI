@@ -371,9 +371,10 @@ def get_model_size_mb(model_file: Path) -> float:
 
 
 def estimate_vram(gguf_file, gpu_layers, ctx_size, cache_type):
-    """
-    Estimate VRAM usage. Returns 0 safely if the model file is missing or unreadable.
-    """
+    model_file = resolve_model_path(gguf_file)
+        if not model_file.exists() or not model_file.is_file():
+        raise FileNotFoundError(f"GGUF model file not found: {model_file}")
+
     try:
         model_file = resolve_model_path(gguf_file)
 
@@ -490,6 +491,18 @@ def update_gpu_layers_and_vram(loader, model, gpu_layers, ctx_size, cache_type, 
     if loader != 'llama.cpp' or model in ["None", None] or not model.endswith(".gguf"):
         if for_ui:
             return (BLANK_VRAM, gr.update()) if auto_adjust else BLANK_VRAM
+        else:
+            return (0, gpu_layers) if auto_adjust else 0
+
+    model_path = resolve_model_path(model)
+    if not model_path.exists() or not model_path.is_file():
+        logger.error(f"GGUF model file was not found: {model_path}")
+        vram_info = (
+            f"<div id=\"vram-info\"'>Model file not found: "
+            f"<span class=\"value\">{model_path}</span></div>"
+        )
+        if for_ui:
+            return (vram_info, gr.update()) if auto_adjust else vram_info
         else:
             return (0, gpu_layers) if auto_adjust else 0
 
