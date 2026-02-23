@@ -1972,6 +1972,7 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     gap: 12px;
 }
 
+<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
 #lessons-tab .lesson-panel {
     border: 1px solid var(--border-color-primary);
     border-radius: 14px;
@@ -1995,6 +1996,13 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
 #lessons-tab input,
 #lessons-tab .wrap {
     border-radius: 10px !important;
+=======
+#lessons-tab .gradio-column {
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    padding: 10px;
+    background: var(--body-background-fill);
+>>>>>>> main
 }
 
 #lessons-tab .gradio-column .gradio-column {
@@ -2003,3 +2011,7 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     border-radius: 0;
     background: transparent;
 }
+<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
+=======
+main
+>>>>>>> main

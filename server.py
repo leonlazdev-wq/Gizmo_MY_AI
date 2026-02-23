@@ -57,7 +57,10 @@ from modules import (
     ui_parameters,
     ui_session,
     ui_lessons,
+<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
     ui_knowledge,
+=======
+>>>>>>> main
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -176,12 +179,18 @@ def create_interface():
             training.create_ui()  # Training tab
         ui_session.create_ui()  # Session tab
         ui_lessons.create_ui()  # Lessons tab
+<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
         ui_knowledge.create_ui()  # Knowledge Base tab
+=======
+>>>>>>> main
 
         # Generation events
         ui_chat.create_event_handlers()
         ui_lessons.create_event_handlers()
+<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
         ui_knowledge.create_event_handlers()
+=======
+>>>>>>> main
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
         if not shared.args.portable:
