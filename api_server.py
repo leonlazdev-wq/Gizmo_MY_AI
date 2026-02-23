@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from flask import Flask, jsonify, request
 
-from modules import memory, rag_engine, collab, auth, sso
+from modules import memory, rag_engine
 
 app = Flask(__name__)
 
@@ -33,39 +33,6 @@ def rag_list():
 @app.get('/models')
 def models():
     return jsonify({"router": "available via modules/model_router.py"})
-
-
-@app.post('/session/<sid>/invite')
-def session_invite(sid):
-    data = request.get_json(force=True, silent=True) or {}
-    owner = data.get('owner_id', 'owner')
-    token = collab.create_session_share(sid, owner_id=owner, password=data.get('password', ''))
-    return jsonify({"token": token, "expires_in_hours": 24})
-
-
-@app.post('/session/join')
-def session_join():
-    data = request.get_json(force=True, silent=True) or {}
-    result = collab.join_session(data.get('token', ''), data.get('user_id', ''), data.get('password', ''))
-    return jsonify(result)
-
-
-@app.get('/session/<sid>/collaborators')
-def session_collaborators(sid):
-    return jsonify(collab.list_collaborators(sid))
-
-
-@app.get('/auth/sso/test')
-def sso_test_endpoint():
-    provider = request.args.get('provider', 'Google')
-    client_id = request.args.get('client_id', '')
-    client_secret = request.args.get('client_secret', '')
-    return jsonify(sso.run_sso_test(provider, client_id, client_secret, mock_mode=True))
-
-
-@app.get('/auth/oidc/callback')
-def oidc_callback():
-    return jsonify({"ok": True, "message": "OIDC callback received (mock)."})
 
 
 if __name__ == '__main__':

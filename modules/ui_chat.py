@@ -15,44 +15,6 @@ inputs = ('Chat input', 'interface_state')
 reload_arr = ('history', 'name1', 'name2', 'mode', 'chat_style', 'character_menu')
 
 
-LESSON_TAB_SYSTEM_PROMPT = '''SYSTEM PROMPT — Lesson-Tab AI
-You are a lesson assistant agent. Primary goal: convert teacher instructions, class materials, or a student's request into short interactive lessons that support visual, auditory, and multilingual learners.
-
-Capabilities you must offer:
-- Receive text, or short structured requests (task: "teach X", "quiz me on Y", "annotate slide Z").
-- Produce: (A) short lesson text (2–6 bullet points), (B) spoken audio (TTS), (C) visual aids (annotated images / small diagrams), (D) a short quiz (3–8 questions with answers).
-- Support any language requested by the user; detect language automatically when not specified.
-- When given permission, access linked classroom materials (Slides or Docs) and: summarize, extract learning objectives, produce slide-ready content, and generate Q&A for practice.
-- Produce annotated images by combining an internet-found image or a generated placeholder and overlaying arrows/labels (e.g., "nucleus", "proton", "neutron"). When web images are used, cite the source metadata in a single short line.
-- Provide a compact "export to slide" payload that maps lesson bullets → slide title + 2–3 bullets per slide.
-- Offer accessibility options: adjustable speaking rate, closed captions, large-font images.
-
-User controls:
-- Microphone input: accept spoken questions and return spoken replies.
-- Play button: plays the generated TTS audio.
-- Visual icon: request a visual variant; when clicked produce annotated image(s) and an image thumbnail gallery.
-- Language selector: override auto-detection.
-- "Use classroom file" button: on approval, the agent will read Slides/Docs from the linked classroom account and produce a lesson draft.
-
-Constraints & safety:
-- Only read files explicitly authorized by the user.
-- If the user asks for copyrighted text beyond short excerpts, summarize instead of verbatim quoting.
-- If content appears to be dangerous or harmful, refuse and offer a safe alternative.
-
-Output format (when asked to produce lesson content):
-Return a JSON object with fields:
-{
-  "title": "string",
-  "language": "ISO code",
-  "bullets": ["..."],
-  "tts_audio_url": "https://...",
-  "images": [ {"thumb_url":"...","annotated_url":"...","source":"..."} ],
-  "quiz": [ {"q":"...","choices":["..."],"answer_index":n} ],
-  "slide_export": [ {"slide_title":"...","slide_bullets":["..."]} ]
-}
-'''
-
-
 def apply_custom_ai_style(chat_input, style_enabled, style_prompt):
     if not style_enabled or not style_prompt or not style_prompt.strip():
         return chat_input
@@ -68,13 +30,9 @@ def run_google_doc_action(credentials_path, document_id, text):
         return "Add credentials JSON path and Google Doc ID first."
 
     try:
-        return google_workspace_tools.write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
+        return write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
     except Exception as exc:
         return f"Google Docs action failed: {exc}"
-
-
-def apply_lesson_tab_prompt():
-    return True, LESSON_TAB_SYSTEM_PROMPT
 
 
 def run_google_slide_action(credentials_path, presentation_id, slide_number, image_query):
@@ -82,26 +40,9 @@ def run_google_slide_action(credentials_path, presentation_id, slide_number, ima
         return "Add credentials JSON path and Google Slides Presentation ID first."
 
     try:
-        return google_workspace_tools.add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
+        return add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
     except Exception as exc:
         return f"Google Slides action failed: {exc}"
-
-def run_slide_designer_action(credentials_path, presentation_id, slide_number, designer_prompt, slide_text, image_query):
-    if not credentials_path or not presentation_id:
-        return "Add credentials JSON path and Google Slides Presentation ID first."
-
-    try:
-        return google_workspace_tools.apply_slide_designer_prompt(
-            credentials_path.strip(),
-            presentation_id.strip(),
-            int(slide_number),
-            designer_prompt,
-            slide_text,
-            image_query,
-        )
-    except Exception as exc:
-        return f"Slide designer action failed: {exc}"
-
 
 
 def create_ui():
@@ -147,40 +88,39 @@ def create_ui():
                         shared.gradio['textbox'] = gr.MultimodalTextbox(label='', placeholder='Send a message', file_types=['text', '.pdf', 'image'], file_count="multiple", elem_id='chat-input', elem_classes=['add_scrollbar'])
                         shared.gradio['typing-dots'] = gr.HTML(value='<div class="typing"><span></span><span class="dot1"></span><span class="dot2"></span></div>', label='typing', elem_id='typing-container')
 
-                    with gr.Column(scale=1, elem_id='connector-plus-container'):
-                        shared.gradio['connector-plus'] = gr.HTML(value='''<div class="connector-menu-wrapper">
-  <details>
-    <summary title="Connectors">+</summary>
-    <div class="connector-menu-panel">
-      <div class="connector-menu-title">Connectors</div>
-      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">GitHub <span>Repos, issues, PR tools</span></a>
-      <a href="https://developers.google.com/docs/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Docs <span>Read/write docs</span></a>
-      <a href="https://developers.google.com/slides/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Slides <span>Create/update slides</span></a>
-      <a href="https://developers.google.com/drive/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Drive <span>Files and folders</span></a>
-      <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer">Notion <span>Pages and databases</span></a>
-      <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">Slack <span>Channels and bots</span></a>
-      <a href="https://developer.atlassian.com/cloud/jira/platform/getting-started/" target="_blank" rel="noopener noreferrer">Jira <span>Projects and tickets</span></a>
-      <a href="https://www.figma.com/developers/api" target="_blank" rel="noopener noreferrer">Figma <span>Design files and comments</span></a>
-      <a href="https://developer.atlassian.com/cloud/confluence/getting-started/" target="_blank" rel="noopener noreferrer">Confluence/Docs <span>Team knowledge bases</span></a>
-      <a href="#" onclick="window.gizmoGoToTab && window.gizmoGoToTab('🛠 Toolbar'); return false;">Gizmo Toolbar <span>Manage style and connector status</span></a>
-    </div>
-  </details>
-</div>
-''', elem_id='connector-plus-html')
 
                     with gr.Column(scale=1, elem_id='generate-stop-container'):
                         with gr.Row():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
 
-                with gr.Row(elem_id='adaptive-toolbar-row', visible=True):
-                    # Visual mock: ✂️ 📝 🐞 📎 compact contextual toolbar
-                    shared.gradio['adaptive_summarize'] = gr.Button('✂️ Summarize', elem_classes=['refresh-button'])
-                    shared.gradio['adaptive_actions'] = gr.Button('📝 Action items', elem_classes=['refresh-button'])
-                    shared.gradio['adaptive_bugs'] = gr.Button('🐞 Find bugs', elem_classes=['refresh-button'])
-                    shared.gradio['adaptive_task'] = gr.Button('📎 Create task', elem_classes=['refresh-button'])
-                    shared.gradio['provenance_btn'] = gr.Button('🕒 Provenance', elem_classes=['refresh-button'])
-                shared.gradio['adaptive_output'] = gr.Textbox(label='Toolbar output', lines=4, interactive=False)
+                with gr.Row(elem_id='chat-automation-row'):
+                    with gr.Accordion('Custom AI style (always visible in Chat tab)', open=False):
+                        shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable custom style/persona')
+                        shared.gradio['custom_style_prompt'] = gr.Textbox(
+                            label='How the AI should behave',
+                            lines=4,
+                            placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
+                            elem_classes=['add_scrollbar']
+                        )
+
+                    with gr.Accordion('Google Workspace actions (Docs/Slides)', open=False):
+                        shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
+                            label='Service account credentials JSON path',
+                            placeholder='/path/to/google-service-account.json',
+                            elem_classes=['add_scrollbar']
+                        )
+                        shared.gradio['google_doc_id'] = gr.Textbox(label='Google Doc ID', placeholder='1Abc...')
+                        shared.gradio['google_doc_text'] = gr.Textbox(label='Text to write to Google Doc', lines=3, elem_classes=['add_scrollbar'])
+                        shared.gradio['google_doc_write'] = gr.Button('Write to Google Doc', elem_classes=['refresh-button'])
+
+                        shared.gradio['google_slides_id'] = gr.Textbox(label='Google Slides Presentation ID', placeholder='1Abc...')
+                        with gr.Row():
+                            shared.gradio['google_slide_number'] = gr.Number(value=1, precision=0, minimum=1, label='Slide number')
+                            shared.gradio['google_slide_image_query'] = gr.Textbox(label='Image query', placeholder='clean modern teamwork photo')
+                        shared.gradio['google_slide_add_image'] = gr.Button('Find image and place on slide', elem_classes=['refresh-button'])
+                        shared.gradio['google_workspace_status'] = gr.Markdown('')
+ main
 
         # Hover menu buttons
         with gr.Column(elem_id='chat-buttons'):
@@ -209,12 +149,20 @@ def create_ui():
                     shared.gradio['apply_lesson_tab_prompt'] = gr.Button('Use Lesson-Tab AI system prompt', elem_classes=['refresh-button'])
 
                 with gr.Accordion('Google Workspace Copilot', open=False):
-                    gr.Markdown('Quick links: [Google Docs API](https://developers.google.com/docs/api/quickstart/python) · [Google Slides API](https://developers.google.com/slides/api/quickstart/python) · [Google Drive API](https://developers.google.com/drive/api/quickstart/python) · [GitHub Tokens](https://github.com/settings/tokens) · [Google Classroom API](https://developers.google.com/classroom)')
-                    gr.Markdown('How to connect: 1) Create a Google Cloud **service account**. 2) Enable Docs/Slides/Drive APIs. 3) Download JSON key file. 4) Paste full path below. 5) Share your target Doc/Slides with the service-account email (`...@...iam.gserviceaccount.com`).')
-                    gr.Markdown('Your JSON key should include fields like: `type`, `project_id`, `private_key_id`, `private_key`, `client_email`, `token_uri`.')
+                    gr.Markdown('Quick links: [Google Docs API](https://developers.google.com/docs/api/quickstart/python) · [Google Slides API](https://developers.google.com/slides/api/quickstart/python) · [GitHub Tokens](https://github.com/settings/tokens) · [Google Classroom API](https://developers.google.com/classroom)')
                     shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
                         label='Service account credentials JSON path',
                         placeholder='/content/drive/MyDrive/your-service-account.json',
+                        lines=4,
+                        placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
+                        elem_classes=['add_scrollbar']
+                    )
+
+                with gr.Accordion('Google Workspace actions', open=False):
+                    shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
+                        label='Service account credentials JSON path',
+                        placeholder='/path/to/google-service-account.json',
+  main
                         elem_classes=['add_scrollbar']
                     )
                     shared.gradio['google_doc_id'] = gr.Textbox(label='Google Doc ID', placeholder='1Abc...')
@@ -231,7 +179,9 @@ def create_ui():
                     shared.gradio['slide_designer_text'] = gr.Textbox(label='Text to place on slide', lines=3, placeholder='AI-generated summary text to insert into a text box')
                     shared.gradio['google_slide_designer_apply'] = gr.Button('Apply smart slide design', elem_classes=['refresh-button'])
                     shared.gradio['google_workspace_status'] = gr.Markdown('')
-                    gr.Markdown('Tip: full student learning UI is in **Lessons** tab (left sidebar, below Session).')
+                    gr.Markdown('Tip: full student Lesson Studio is in **Session → Lesson Studio & Connectors**.')
+                    shared.gradio['google_workspace_status'] = gr.Markdown('')
+ main
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
@@ -423,13 +373,15 @@ def create_event_handlers():
         gradio('custom_style_enabled', 'custom_style_prompt'),
         show_progress=False)
 
+ main
+ main
     shared.gradio['google_doc_write'].click(
         run_google_doc_action,
         gradio('gworkspace_credentials_path', 'google_doc_id', 'google_doc_text'),
         gradio('google_workspace_status'),
         show_progress=False)
 
-
+ main
     shared.gradio['google_slide_add_image'].click(
         run_google_slide_action,
         gradio('gworkspace_credentials_path', 'google_slides_id', 'google_slide_number', 'google_slide_image_query'),
@@ -442,6 +394,7 @@ def create_event_handlers():
         gradio('google_workspace_status'),
         show_progress=False)
 
+ main
     shared.gradio['Regenerate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(

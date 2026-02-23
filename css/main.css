@@ -1995,6 +1995,12 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
 #lessons-tab input,
 #lessons-tab .wrap {
     border-radius: 10px !important;
+#lessons-tab .gradio-column {
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    padding: 10px;
+    background: var(--body-background-fill);
+ main
 }
 
 #lessons-tab .gradio-column .gradio-column {
@@ -2003,15 +2009,5 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     border-radius: 0;
     background: transparent;
 }
-
-/* Workflows canvas visual hint
-   [Planner] ~~~> [WebSearch] ~~~> [Writer]
-*/
-#workflow-canvas-html {
-    border-radius: 12px;
-}
-
-#adaptive-toolbar-row button {
-    border-radius: 8px;
-    padding: 10px 14px;
-}
+main
+ main

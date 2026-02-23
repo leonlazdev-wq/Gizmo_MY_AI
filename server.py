@@ -57,10 +57,7 @@ from modules import (
     ui_parameters,
     ui_session,
     ui_lessons,
-    ui_knowledge,
-    ui_workflows,
-    ui_forms,
-    ui_analytics,
+ main
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -179,18 +176,12 @@ def create_interface():
             training.create_ui()  # Training tab
         ui_session.create_ui()  # Session tab
         ui_lessons.create_ui()  # Lessons tab
-        ui_knowledge.create_ui()  # Knowledge Base tab
-        ui_workflows.create_ui()  # Workflows tab
-        ui_forms.create_ui()  # Forms tab
-        ui_analytics.create_ui()  # Analytics tab
+ main
 
         # Generation events
         ui_chat.create_event_handlers()
         ui_lessons.create_event_handlers()
-        ui_knowledge.create_event_handlers()
-        ui_workflows.create_event_handlers()
-        ui_forms.create_event_handlers()
-        ui_analytics.create_event_handlers()
+ main
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
         if not shared.args.portable:
