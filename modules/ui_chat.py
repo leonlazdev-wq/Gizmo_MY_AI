@@ -88,23 +88,6 @@ def create_ui():
                         shared.gradio['textbox'] = gr.MultimodalTextbox(label='', placeholder='Send a message', file_types=['text', '.pdf', 'image'], file_count="multiple", elem_id='chat-input', elem_classes=['add_scrollbar'])
                         shared.gradio['typing-dots'] = gr.HTML(value='<div class="typing"><span></span><span class="dot1"></span><span class="dot2"></span></div>', label='typing', elem_id='typing-container')
 
-                    with gr.Column(scale=1, elem_id='connector-plus-container'):
-                        shared.gradio['connector-plus'] = gr.HTML(value='''<div class="connector-menu-wrapper">
-  <details>
-    <summary title="Connectors">+</summary>
-    <div class="connector-menu-panel">
-      <div class="connector-menu-title">Connectors</div>
-      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">GitHub <span>Repos, issues, PR tools</span></a>
-      <a href="https://developers.google.com/docs/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Docs <span>Read/write docs</span></a>
-      <a href="https://developers.google.com/slides/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Slides <span>Create/update slides</span></a>
-      <a href="https://developers.google.com/drive/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Drive <span>Files and folders</span></a>
-      <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer">Notion <span>Pages and databases</span></a>
-      <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">Slack <span>Channels and bots</span></a>
-      <a href="https://developer.atlassian.com/cloud/jira/platform/getting-started/" target="_blank" rel="noopener noreferrer">Jira <span>Projects and tickets</span></a>
-    </div>
-  </details>
-</div>
-''', elem_id='connector-plus-html')
 
                     with gr.Column(scale=1, elem_id='generate-stop-container'):
                         with gr.Row():
@@ -153,6 +136,33 @@ def create_ui():
             with gr.Column():
                 with gr.Row():
                     shared.gradio['start_with'] = gr.Textbox(label='Start reply with', placeholder='Sure thing!', value=shared.settings['start_with'], elem_classes=['add_scrollbar'])
+
+                with gr.Accordion('Custom AI style', open=False):
+                    shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable custom style/persona')
+                    shared.gradio['custom_style_prompt'] = gr.Textbox(
+                        label='How the AI should behave',
+                        lines=4,
+                        placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
+                        elem_classes=['add_scrollbar']
+                    )
+
+                with gr.Accordion('Google Workspace actions', open=False):
+                    shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
+                        label='Service account credentials JSON path',
+                        placeholder='/path/to/google-service-account.json',
+                        elem_classes=['add_scrollbar']
+                    )
+                    shared.gradio['google_doc_id'] = gr.Textbox(label='Google Doc ID', placeholder='1Abc...')
+                    shared.gradio['google_doc_text'] = gr.Textbox(label='Text to write to Google Doc', lines=3, elem_classes=['add_scrollbar'])
+                    shared.gradio['google_doc_write'] = gr.Button('Write to Google Doc', elem_classes=['refresh-button'])
+
+                    shared.gradio['google_slides_id'] = gr.Textbox(label='Google Slides Presentation ID', placeholder='1Abc...')
+                    with gr.Row():
+                        shared.gradio['google_slide_number'] = gr.Number(value=1, precision=0, minimum=1, label='Slide number')
+                        shared.gradio['google_slide_image_query'] = gr.Textbox(label='Image query', placeholder='clean modern teamwork photo')
+                    shared.gradio['google_slide_add_image'] = gr.Button('Find image and place on slide', elem_classes=['refresh-button'])
+                    shared.gradio['google_workspace_status'] = gr.Markdown('')
+
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
                 shared.gradio['reasoning_effort'] = gr.Dropdown(value=shared.settings['reasoning_effort'], choices=['low', 'medium', 'high'], label='Reasoning effort', info='Used by GPT-OSS.')
