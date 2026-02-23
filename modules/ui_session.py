@@ -1,6 +1,7 @@
 import gradio as gr
 
 from modules import shared, ui, utils
+from modules.google_workspace_tools import add_image_to_slide, apply_slide_designer_prompt, write_text_to_doc
 from modules.utils import gradio
 
 
@@ -26,6 +27,53 @@ def create_ui():
                     with gr.Column():
                         shared.gradio['bool_menu'] = gr.CheckboxGroup(choices=get_boolean_arguments(), value=get_boolean_arguments(active=True), label="Boolean command-line flags", elem_classes='checkboxgroup-table')
 
+        with gr.Row():
+            with gr.Column():
+                with gr.Accordion('🎓 Lesson Studio & Connectors (for students)', open=False):
+                    gr.Markdown(
+                        """Where to find this: **Session tab**.
+
+Quick setup links: [Google Docs API](https://developers.google.com/docs/api/quickstart/python) · [Google Slides API](https://developers.google.com/slides/api/quickstart/python) · [Google Drive API](https://developers.google.com/drive/api/quickstart/python) · [Google Classroom API](https://developers.google.com/classroom) · [GitHub Tokens](https://github.com/settings/tokens)
+
+1. Create a Google Cloud service account and enable Docs/Slides/Drive APIs.
+2. Share your target Doc/Slides file with the service-account email.
+3. Paste credentials JSON path + file IDs below.
+4. Build a lesson request and paste it into Chat.
+5. Use actions to write Docs text and redesign Slides from prompts.
+"""
+                    )
+
+                    with gr.Row():
+                        shared.gradio['session_lesson_topic'] = gr.Textbox(label='Lesson topic', placeholder='Photosynthesis / Fractions / History')
+                        shared.gradio['session_lesson_level'] = gr.Dropdown(label='Student level', choices=['elementary', 'middle school', 'high school', 'college', 'mixed'], value='middle school')
+                        shared.gradio['session_lesson_language'] = gr.Textbox(label='Language', value='auto')
+                        shared.gradio['session_lesson_duration'] = gr.Slider(label='Duration (minutes)', minimum=5, maximum=45, step=1, value=12)
+
+                    shared.gradio['session_lesson_goals'] = gr.Textbox(label='Learning goals (one per line)', lines=3)
+                    with gr.Row():
+                        shared.gradio['session_lesson_include_quiz'] = gr.Checkbox(label='Include quiz', value=True)
+                        shared.gradio['session_lesson_include_visuals'] = gr.Checkbox(label='Include visuals', value=True)
+                    shared.gradio['session_build_lesson'] = gr.Button('Build lesson request', elem_classes='refresh-button')
+                    shared.gradio['session_lesson_status'] = gr.Textbox(label='Lesson status', interactive=False)
+                    shared.gradio['session_lesson_payload'] = gr.Textbox(label='Lesson prompt to send to AI', lines=8, elem_classes=['add_scrollbar'])
+
+                    gr.HTML("<div class='sidebar-vertical-separator'></div>")
+                    shared.gradio['session_gworkspace_credentials'] = gr.Textbox(label='Service account credentials JSON path', placeholder='/content/drive/MyDrive/your-service-account.json')
+                    shared.gradio['session_google_doc_id'] = gr.Textbox(label='Google Doc ID')
+                    shared.gradio['session_google_doc_text'] = gr.Textbox(label='Text to write to Google Doc', lines=3)
+                    shared.gradio['session_google_doc_write'] = gr.Button('Write to Google Doc', elem_classes='refresh-button')
+
+                    shared.gradio['session_google_slides_id'] = gr.Textbox(label='Google Slides Presentation ID')
+                    with gr.Row():
+                        shared.gradio['session_google_slide_number'] = gr.Number(value=1, precision=0, minimum=1, label='Slide number')
+                        shared.gradio['session_google_slide_image_query'] = gr.Textbox(label='Image query')
+                    shared.gradio['session_google_slide_add_image'] = gr.Button('Add image to slide', elem_classes='refresh-button')
+
+                    shared.gradio['session_slide_designer_prompt'] = gr.Textbox(label='Slide designer prompt', lines=3, placeholder='change background color to #1D3557, add image in top right, move text 120 px down')
+                    shared.gradio['session_slide_designer_text'] = gr.Textbox(label='Text for text box', lines=2)
+                    shared.gradio['session_slide_designer_apply'] = gr.Button('Apply smart slide design', elem_classes='refresh-button')
+                    shared.gradio['session_workspace_status'] = gr.Markdown('')
+
         shared.gradio['theme_state'] = gr.Textbox(visible=False, value='dark' if shared.settings['dark_theme'] else 'light')
         if not mu:
             shared.gradio['save_settings'].click(
@@ -41,6 +89,30 @@ def create_ui():
             gradio('show_two_notebook_columns', 'textbox-default', 'output_textbox', 'prompt_menu-default', 'textbox-notebook', 'prompt_menu-notebook'),
             gradio('default-tab', 'notebook-tab', 'textbox-default', 'output_textbox', 'prompt_menu-default', 'textbox-notebook', 'prompt_menu-notebook')
         )
+
+        shared.gradio['session_build_lesson'].click(
+            build_lesson_request,
+            gradio('session_lesson_topic', 'session_lesson_level', 'session_lesson_language', 'session_lesson_duration', 'session_lesson_goals', 'session_lesson_include_quiz', 'session_lesson_include_visuals'),
+            gradio('session_lesson_status', 'session_lesson_payload'),
+            show_progress=False)
+
+        shared.gradio['session_google_doc_write'].click(
+            run_session_google_doc,
+            gradio('session_gworkspace_credentials', 'session_google_doc_id', 'session_google_doc_text'),
+            gradio('session_workspace_status'),
+            show_progress=False)
+
+        shared.gradio['session_google_slide_add_image'].click(
+            run_session_google_slide_image,
+            gradio('session_gworkspace_credentials', 'session_google_slides_id', 'session_google_slide_number', 'session_google_slide_image_query'),
+            gradio('session_workspace_status'),
+            show_progress=False)
+
+        shared.gradio['session_slide_designer_apply'].click(
+            run_session_slide_designer,
+            gradio('session_gworkspace_credentials', 'session_google_slides_id', 'session_google_slide_number', 'session_slide_designer_prompt', 'session_slide_designer_text', 'session_google_slide_image_query'),
+            gradio('session_workspace_status'),
+            show_progress=False)
 
         # Reset interface event
         if not mu:
@@ -108,3 +180,53 @@ def get_boolean_arguments(active=False):
         return bool_active
     else:
         return bool_list
+
+
+def build_lesson_request(topic, level, language, duration_min, goals, include_quiz, include_visuals):
+    topic = (topic or '').strip()
+    if not topic:
+        return "❌ Enter a lesson topic first.", ""
+
+    goals_list = [g.strip() for g in (goals or '').split("\n") if g.strip()]
+    goals_text = "\n".join(f"- {g}" for g in goals_list) if goals_list else "- Explain key idea in simple language"
+
+    request = (
+        f"Create a {int(duration_min)}-minute lesson for {level} students.\n"
+        f"Topic: {topic}\n"
+        f"Language: {language or 'auto'}\n"
+        f"Goals:\n{goals_text}\n"
+        f"Include quiz: {'yes' if include_quiz else 'no'}\n"
+        f"Include visuals: {'yes' if include_visuals else 'no'}\n\n"
+        "Output strict JSON with keys: title, language, bullets, tts_audio_url, images, quiz, slide_export."
+    )
+    return "✅ Lesson request ready. Copy to chat.", request
+
+
+def run_session_google_doc(credentials_path, document_id, text):
+    if not credentials_path or not document_id:
+        return "Add credentials path and Google Doc ID first."
+
+    try:
+        return write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
+    except Exception as exc:
+        return f"Google Docs action failed: {exc}"
+
+
+def run_session_google_slide_image(credentials_path, presentation_id, slide_number, image_query):
+    if not credentials_path or not presentation_id:
+        return "Add credentials path and Google Slides Presentation ID first."
+
+    try:
+        return add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
+    except Exception as exc:
+        return f"Google Slides image action failed: {exc}"
+
+
+def run_session_slide_designer(credentials_path, presentation_id, slide_number, designer_prompt, slide_text, image_query):
+    if not credentials_path or not presentation_id:
+        return "Add credentials path and Google Slides Presentation ID first."
+
+    try:
+        return apply_slide_designer_prompt(credentials_path.strip(), presentation_id.strip(), int(slide_number), designer_prompt, slide_text, image_query)
+    except Exception as exc:
+        return f"Slide designer failed: {exc}"
