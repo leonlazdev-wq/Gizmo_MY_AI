@@ -300,7 +300,22 @@ if __name__ == "__main__":
 
     # Model defined through --model
     if shared.args.model is not None:
-        shared.model_name = shared.args.model
+        requested_model = str(shared.args.model).strip()
+
+        if requested_model.lower() in ['', 'none']:
+            shared.model_name = 'None'
+            logger.info('No startup model selected via --model. Web UI will start without loading a model.')
+        else:
+            resolved_model_path = utils.resolve_model_path(requested_model)
+            if not resolved_model_path.exists():
+                logger.error(
+                    f'Startup model not found: "{requested_model}". '
+                    'Starting the UI without loading a model. '
+                    f'Expected path: {resolved_model_path}'
+                )
+                shared.model_name = 'None'
+            else:
+                shared.model_name = requested_model
 
     # Select the model from a command-line menu
     elif shared.args.model_menu:
