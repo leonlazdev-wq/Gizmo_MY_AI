@@ -573,12 +573,11 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args, ele
     def refresh():
         refresh_method()
         args = refreshed_args() if callable(refreshed_args) else refreshed_args
-
         return gr.update(**(args or {}))
 
     refresh_button = gr.Button(refresh_symbol, elem_classes=elem_class, interactive=interactive)
     refresh_button.click(
-        fn=lambda: {k: tuple(v) if type(k) is list else v for k, v in refresh().items()},
+        fn=lambda t: {k: tuple(v) if isinstance(v, list) else v for k, v in refresh().items()},
         inputs=[],
         outputs=[refresh_component]
     )
