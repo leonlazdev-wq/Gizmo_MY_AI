@@ -343,7 +343,10 @@ def create_event_handlers():
         gradio('custom_style_enabled', 'custom_style_prompt'),
         show_progress=False)
 
+<<<<<<< codex/add-google-docs-and-slides-integration-otz8zb
+=======
  main
+>>>>>>> main
     shared.gradio['google_doc_write'].click(
         run_google_doc_action,
         gradio('gworkspace_credentials_path', 'google_doc_id', 'google_doc_text'),
