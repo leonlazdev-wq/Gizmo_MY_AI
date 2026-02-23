@@ -1,4 +1,5 @@
 import struct
+from pathlib import Path
 from enum import IntEnum
 
 
@@ -53,7 +54,7 @@ def get_single(value_type, file):
         value = file.read(value_length)
         try:
             value = value.decode('utf-8')
-        except:
+        except Exception:
             pass
     else:
         type_str = _simple_value_packing.get(value_type)
@@ -64,51 +65,79 @@ def get_single(value_type, file):
 
 
 def load_metadata(model_file):
-    """Load GGUF metadata with file validation."""
-    from pathlib import Path
-    
-    # CRITICAL: Validate file before reading
+    """Load GGUF metadata with full validation and safe parsing."""
     model_file = Path(model_file)
-    
-    # Check file exists
+
+    # ── File existence check ───────────────────────────────────────────────────
     if not model_file.exists():
-        logger.warning(f"Model file not found: {model_file}")
-        return None
-    
-    # Check file size (minimum 1KB for valid GGUF)
-    file_size = model_file.stat().st_size
-    MIN_VALID_SIZE = 1024  # 1KB minimum
-    
+        print(f"[warn] metadata_gguf: file not found: {model_file}")
+        return {}
+
+    # ── File size check ────────────────────────────────────────────────────────
+    MIN_VALID_SIZE = 1024  # 1 KB minimum for a real GGUF
+    try:
+        file_size = model_file.stat().st_size
+    except Exception as e:
+        print(f"[warn] metadata_gguf: cannot stat {model_file.name}: {e}")
+        return {}
+
     if file_size < MIN_VALID_SIZE:
-        logger.warning(f"Model file too small ({file_size} bytes): {model_file.name}")
-        logger.warning(f"Expected minimum: {MIN_VALID_SIZE} bytes")
-        
-        # Auto-delete corrupt files
+        print(f"[warn] metadata_gguf: file too small ({file_size} bytes): {model_file.name}")
         try:
             model_file.unlink()
-            logger.info(f"Deleted corrupt file: {model_file.name}")
-        except Exception as e:
-            logger.error(f"Could not delete corrupt file: {e}")
-        
-        return None
-    
-    # Now safe to read
+            print(f"[info] metadata_gguf: deleted corrupt file: {model_file.name}")
+        except Exception:
+            pass
+        return {}
+
+    # ── Parse GGUF ─────────────────────────────────────────────────────────────
+    metadata = {}
     try:
         with open(model_file, 'rb') as file:
-            # Read magic number
+            # Magic number — must be 'GGUF'
             magic_bytes = file.read(4)
             if len(magic_bytes) < 4:
-                logger.error(f"Could not read GGUF header: {model_file.name}")
-                return None
-            
+                print(f"[error] metadata_gguf: could not read header: {model_file.name}")
+                return {}
+
             GGUF_MAGIC = struct.unpack("<I", magic_bytes)[0]
-            
-            # Verify GGUF magic number (0x46554747 = "GGUF")
-            EXPECTED_MAGIC = 0x46554747
+            EXPECTED_MAGIC = 0x46554747  # b'GGUF'
             if GGUF_MAGIC != EXPECTED_MAGIC:
-                logger.error(f"Invalid GGUF magic number in {model_file.name}")
-                logger.error(f"Expected: 0x{EXPECTED_MAGIC:08X}, Got: 0x{GGUF_MAGIC:08X}")
-                return None
-            
-            
+                print(f"[error] metadata_gguf: bad magic 0x{GGUF_MAGIC:08X} in {model_file.name}")
+                return {}
+
+            # Version
+            version = struct.unpack("<I", file.read(4))[0]
+
+            # Tensor count and KV count
+            if version == 1:
+                tensor_count = struct.unpack("<Q", file.read(8))[0]
+                kv_count = struct.unpack("<Q", file.read(8))[0]
+            else:
+                tensor_count = struct.unpack("<Q", file.read(8))[0]
+                kv_count = struct.unpack("<Q", file.read(8))[0]
+
+            # Read key-value metadata pairs
+            for _ in range(kv_count):
+                # Key
+                key_length = struct.unpack("<Q", file.read(8))[0]
+                key = file.read(key_length).decode('utf-8')
+
+                # Value type
+                value_type = GGUFValueType(struct.unpack("<I", file.read(4))[0])
+
+                # Value
+                if value_type == GGUFValueType.ARRAY:
+                    array_type = GGUFValueType(struct.unpack("<I", file.read(4))[0])
+                    array_length = struct.unpack("<Q", file.read(8))[0]
+                    value = [get_single(array_type, file) for _ in range(array_length)]
+                else:
+                    value = get_single(value_type, file)
+
+                metadata[key] = value
+
+    except Exception as e:
+        print(f"[error] metadata_gguf: failed to parse {model_file.name}: {e}")
+        return {}
+
     return metadata
