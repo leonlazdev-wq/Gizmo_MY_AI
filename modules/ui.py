@@ -577,7 +577,7 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args, ele
 
     refresh_button = gr.Button(refresh_symbol, elem_classes=elem_class, interactive=interactive)
     refresh_button.click(
-        fn=lambda t: {k: tuple(v) if isinstance(v, list) else v for k, v in refresh().items()},
+        fn=lambda t t: {k: tuple(v) if isinstance(v, list) else v for k, v in refresh().items()},
         inputs=[],
         outputs=[refresh_component]
     )

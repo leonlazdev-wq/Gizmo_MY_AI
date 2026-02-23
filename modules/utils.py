@@ -174,6 +174,10 @@ def get_available_image_models():
 
 
 def get_available_ggufs():
+    """
+    Get list of available GGUF files.
+    Filters out corrupt files (< 1MB).
+    """
     model_list = []
     model_dir = Path(shared.args.model_dir)
 
@@ -181,10 +185,33 @@ def get_available_ggufs():
         for file in files:
             if file.lower().endswith(".gguf"):
                 model_path = Path(dirpath) / file
-                rel_path = model_path.relative_to(model_dir)
-                model_list.append(str(rel_path))
+                
+                # CRITICAL: Validate file size before adding to list
+                try:
+                    file_size = model_path.stat().st_size
+                    MIN_VALID_SIZE = 1024 * 1024  # 1MB minimum
+                    
+                    if file_size >= MIN_VALID_SIZE:
+                        # File is valid, add to list
+                        rel_path = model_path.relative_to(model_dir)
+                        model_list.append(str(rel_path))
+                    else:
+                        # File is too small, skip and optionally delete
+                        logger.warning(f"Skipping small GGUF file: {file} ({file_size} bytes)")
+                        
+                        # Auto-delete if < 100KB (definitely corrupt)
+                        if file_size < (100 * 1024):
+                            try:
+                                model_path.unlink()
+                                logger.info(f"Deleted corrupt GGUF file: {file}")
+                            except Exception as e:
+                                logger.error(f"Could not delete {file}: {e}")
+                
+                except Exception as e:
+                    logger.error(f"Error checking GGUF file {file}: {e}")
 
     return sorted(model_list, key=natural_keys)
+
 
 
 def get_available_mmproj():
