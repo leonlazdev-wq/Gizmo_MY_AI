@@ -1,9 +1,5 @@
 import hashlib
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-import re
-import uuid
-=======
->>>>>>> main
+ main
 from typing import Optional
 
 WIKIMEDIA_SEARCH_API = "https://commons.wikimedia.org/w/api.php"
@@ -63,7 +59,6 @@ def _find_wikimedia_image(query: str) -> str:
     return f"https://picsum.photos/seed/{hashlib.md5(query.encode('utf-8')).hexdigest()}/1280/720"
 
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
 def _hex_to_rgb_fraction(hex_color: str):
     value = hex_color.lstrip("#")
     if len(value) != 6:
@@ -76,8 +71,7 @@ def _hex_to_rgb_fraction(hex_color: str):
     }
 
 
-=======
->>>>>>> main
+ main
 def write_text_to_doc(credentials_path: str, document_id: str, text: str) -> str:
     docs_service, _, error = _build_services(credentials_path)
     if error:
@@ -114,15 +108,13 @@ def add_image_to_slide(credentials_path: str, presentation_id: str, slide_number
     slide_id = slides[slide_number - 1]["objectId"]
     image_url = _find_wikimedia_image(image_query)
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
     image_object_id = f"gizmo_img_{uuid.uuid4().hex[:10]}"
     requests = [{
         "createImage": {
             "objectId": image_object_id,
-=======
     requests = [{
         "createImage": {
->>>>>>> main
+          main
             "url": image_url,
             "elementProperties": {
                 "pageObjectId": slide_id,
@@ -145,11 +137,8 @@ def add_image_to_slide(credentials_path: str, presentation_id: str, slide_number
         requests.append(
             {
                 "updatePageElementAltText": {
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-                    "objectId": image_object_id,
-=======
                     "objectId": "{{LAST_CREATED_OBJECT_ID}}",
->>>>>>> main
+         main
                     "title": alt_text.strip()[:300],
                     "description": image_query[:1000],
                 }
@@ -158,7 +147,6 @@ def add_image_to_slide(credentials_path: str, presentation_id: str, slide_number
 
     slides_service.presentations().batchUpdate(
         presentationId=presentation_id,
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
         body={"requests": requests},
     ).execute()
 
@@ -289,9 +277,8 @@ def apply_slide_designer_prompt(credentials_path: str, presentation_id: str, sli
     ).execute()
 
     return "✅ Slide designer applied: " + ", ".join(operations)
-=======
         body={"requests": requests[:1]},
     ).execute()
 
     return f"✅ Added image for '{image_query}' to slide {slide_number}. Source: {image_url}"
->>>>>>> main
+ main

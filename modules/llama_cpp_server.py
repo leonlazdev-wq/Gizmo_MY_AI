@@ -399,13 +399,25 @@ class LlamaServer:
             cmd += ["--split-mode", "row"]
 
         # Cache type
-        cache_type = "fp16"
-        if shared.args.cache_type in llamacpp_valid_cache_types:
-            cmd += [
-                "--cache-type-k", shared.args.cache_type,
-                "--cache-type-v", shared.args.cache_type
-            ]
-            cache_type = shared.args.cache_type
+        cache_type = "f16"
+        cache_type_aliases = {
+            "fp16": "f16",
+            "f16": "f16",
+            "bf16": "bf16",
+            "q8_0": "q8_0",
+            "q4_0": "q4_0",
+            "q4_1": "q4_1",
+            "iq4_nl": "iq4_nl",
+            "q5_0": "q5_0",
+            "q5_1": "q5_1",
+            "f32": "f32",
+        }
+        selected_cache_type = cache_type_aliases.get(shared.args.cache_type, "f16")
+        cmd += [
+            "--cache-type-k", selected_cache_type,
+            "--cache-type-v", selected_cache_type
+        ]
+        cache_type = selected_cache_type
 
         # Rope scaling
         if shared.args.compress_pos_emb != 1:

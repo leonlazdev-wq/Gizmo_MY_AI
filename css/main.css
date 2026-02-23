@@ -1953,7 +1953,6 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     font-size: 12px;
     opacity: .8;
 }
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
 
 #chat-automation-row {
     margin-top: 6px;
@@ -1986,5 +1985,4 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     border-radius: 0;
     background: transparent;
 }
-=======
->>>>>>> main
+main

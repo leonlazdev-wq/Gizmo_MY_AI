@@ -88,37 +88,12 @@ def create_ui():
                         shared.gradio['textbox'] = gr.MultimodalTextbox(label='', placeholder='Send a message', file_types=['text', '.pdf', 'image'], file_count="multiple", elem_id='chat-input', elem_classes=['add_scrollbar'])
                         shared.gradio['typing-dots'] = gr.HTML(value='<div class="typing"><span></span><span class="dot1"></span><span class="dot2"></span></div>', label='typing', elem_id='typing-container')
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-                    with gr.Column(scale=1, elem_id='connector-plus-container'):
-                        shared.gradio['connector-plus'] = gr.HTML(value='''<div class="connector-menu-wrapper">
-  <details>
-    <summary title="Connectors">+</summary>
-    <div class="connector-menu-panel">
-      <div class="connector-menu-title">Connectors</div>
-      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer">GitHub <span>Repos, issues, PR tools</span></a>
-      <a href="https://developers.google.com/docs/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Docs <span>Read/write docs</span></a>
-      <a href="https://developers.google.com/slides/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Slides <span>Create/update slides</span></a>
-      <a href="https://developers.google.com/drive/api/quickstart/python" target="_blank" rel="noopener noreferrer">Google Drive <span>Files and folders</span></a>
-      <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer">Notion <span>Pages and databases</span></a>
-      <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">Slack <span>Channels and bots</span></a>
-      <a href="https://developer.atlassian.com/cloud/jira/platform/getting-started/" target="_blank" rel="noopener noreferrer">Jira <span>Projects and tickets</span></a>
-      <a href="https://www.figma.com/developers/api" target="_blank" rel="noopener noreferrer">Figma <span>Design files and comments</span></a>
-      <a href="https://developer.atlassian.com/cloud/confluence/getting-started/" target="_blank" rel="noopener noreferrer">Confluence/Docs <span>Team knowledge bases</span></a>
-      <a href="#" onclick="window.gizmoGoToTab && window.gizmoGoToTab('🛠 Toolbar'); return false;">Gizmo Toolbar <span>Manage style and connector status</span></a>
-    </div>
-  </details>
-</div>
-''', elem_id='connector-plus-html')
-=======
->>>>>>> main
 
                     with gr.Column(scale=1, elem_id='generate-stop-container'):
                         with gr.Row():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-=======
                 with gr.Row(elem_id='chat-automation-row'):
                     with gr.Accordion('Custom AI style (always visible in Chat tab)', open=False):
                         shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable custom style/persona')
@@ -145,7 +120,7 @@ def create_ui():
                             shared.gradio['google_slide_image_query'] = gr.Textbox(label='Image query', placeholder='clean modern teamwork photo')
                         shared.gradio['google_slide_add_image'] = gr.Button('Find image and place on slide', elem_classes=['refresh-button'])
                         shared.gradio['google_workspace_status'] = gr.Markdown('')
->>>>>>> main
+ main
 
         # Hover menu buttons
         with gr.Column(elem_id='chat-buttons'):
@@ -167,7 +142,6 @@ def create_ui():
                     shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable custom style/persona')
                     shared.gradio['custom_style_prompt'] = gr.Textbox(
                         label='How the AI should behave',
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
                         lines=6,
                         placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
                         elem_classes=['add_scrollbar']
@@ -179,7 +153,6 @@ def create_ui():
                     shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
                         label='Service account credentials JSON path',
                         placeholder='/content/drive/MyDrive/your-service-account.json',
-=======
                         lines=4,
                         placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
                         elem_classes=['add_scrollbar']
@@ -189,7 +162,7 @@ def create_ui():
                     shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
                         label='Service account credentials JSON path',
                         placeholder='/path/to/google-service-account.json',
->>>>>>> main
+  main
                         elem_classes=['add_scrollbar']
                     )
                     shared.gradio['google_doc_id'] = gr.Textbox(label='Google Doc ID', placeholder='1Abc...')
@@ -201,16 +174,14 @@ def create_ui():
                         shared.gradio['google_slide_number'] = gr.Number(value=1, precision=0, minimum=1, label='Slide number')
                         shared.gradio['google_slide_image_query'] = gr.Textbox(label='Image query', placeholder='clean modern teamwork photo')
                     shared.gradio['google_slide_add_image'] = gr.Button('Find image and place on slide', elem_classes=['refresh-button'])
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
 
                     shared.gradio['slide_designer_prompt'] = gr.Textbox(label='Slide designer instructions', lines=3, placeholder='Example: change background color to #101A2A, add image in top right, move text 120 px down')
                     shared.gradio['slide_designer_text'] = gr.Textbox(label='Text to place on slide', lines=3, placeholder='AI-generated summary text to insert into a text box')
                     shared.gradio['google_slide_designer_apply'] = gr.Button('Apply smart slide design', elem_classes=['refresh-button'])
                     shared.gradio['google_workspace_status'] = gr.Markdown('')
                     gr.Markdown('Tip: full student Lesson Studio is in **Session → Lesson Studio & Connectors**.')
-=======
                     shared.gradio['google_workspace_status'] = gr.Markdown('')
->>>>>>> main
+ main
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
@@ -366,40 +337,33 @@ def create_event_handlers():
         None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.remove("_generating")').then(
         None, None, None, js=f'() => {{{ui.audio_notification_js}}}')
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
     shared.gradio['apply_lesson_tab_prompt'].click(
         apply_lesson_tab_prompt,
         None,
         gradio('custom_style_enabled', 'custom_style_prompt'),
         show_progress=False)
 
-=======
->>>>>>> main
+ main
     shared.gradio['google_doc_write'].click(
         run_google_doc_action,
         gradio('gworkspace_credentials_path', 'google_doc_id', 'google_doc_text'),
         gradio('google_workspace_status'),
         show_progress=False)
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-
-=======
->>>>>>> main
+ main
     shared.gradio['google_slide_add_image'].click(
         run_google_slide_action,
         gradio('gworkspace_credentials_path', 'google_slides_id', 'google_slide_number', 'google_slide_image_query'),
         gradio('google_workspace_status'),
         show_progress=False)
 
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
     shared.gradio['google_slide_designer_apply'].click(
         run_slide_designer_action,
         gradio('gworkspace_credentials_path', 'google_slides_id', 'google_slide_number', 'slide_designer_prompt', 'slide_designer_text', 'google_slide_image_query'),
         gradio('google_workspace_status'),
         show_progress=False)
 
-=======
->>>>>>> main
+ main
     shared.gradio['Regenerate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(

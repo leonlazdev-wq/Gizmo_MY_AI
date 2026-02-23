@@ -4,15 +4,12 @@ from datetime import datetime
 import gradio as gr
 
 from modules import shared
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-from modules import google_workspace_tools
-=======
 from modules.google_workspace_tools import add_image_to_slide, apply_slide_designer_prompt, write_text_to_doc
->>>>>>> main
 from modules.utils import gradio
 
 
 def build_lesson_request(topic, level, language, duration_min, goals, include_quiz, include_visuals, include_flashcards):
+ main
     topic = (topic or '').strip()
     if not topic:
         return "❌ Enter a lesson topic first.", ""
@@ -56,11 +53,8 @@ def run_google_doc(credentials_path, document_id, text):
         return "Add credentials path and Google Doc ID first."
 
     try:
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-        return google_workspace_tools.write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
-=======
         return write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
->>>>>>> main
+ main
     except Exception as exc:
         return f"Google Docs action failed: {exc}"
 
@@ -70,11 +64,8 @@ def run_google_slide_image(credentials_path, presentation_id, slide_number, imag
         return "Add credentials path and Google Slides Presentation ID first."
 
     try:
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-        return google_workspace_tools.add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
-=======
         return add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
->>>>>>> main
+ main
     except Exception as exc:
         return f"Google Slides image action failed: {exc}"
 
@@ -84,11 +75,8 @@ def run_google_slide_designer(credentials_path, presentation_id, slide_number, d
         return "Add credentials path and Google Slides Presentation ID first."
 
     try:
-<<<<<<< codex/add-google-docs-and-slides-integration-vgzi4y
-        return google_workspace_tools.apply_slide_designer_prompt(credentials_path.strip(), presentation_id.strip(), int(slide_number), designer_prompt, slide_text, image_query)
-=======
         return apply_slide_designer_prompt(credentials_path.strip(), presentation_id.strip(), int(slide_number), designer_prompt, slide_text, image_query)
->>>>>>> main
+ main
     except Exception as exc:
         return f"Slide designer failed: {exc}"
 
