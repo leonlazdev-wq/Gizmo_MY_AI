@@ -1,1 +1,1 @@
---cpu --gpu-layers 0 --ctx-size 2048 --threads 4 --api --public-api --share
+--listen --share --verbose --api --api-port 5000 --auto-launch --loader llama.cpp --gpu-layers -1 --ctx-size 4096 --batch-size 512 --threads 4
