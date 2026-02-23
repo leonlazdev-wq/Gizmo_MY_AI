@@ -372,7 +372,7 @@ def get_model_size_mb(model_file: Path) -> float:
 
 def estimate_vram(gguf_file, gpu_layers, ctx_size, cache_type):
     model_file = resolve_model_path(gguf_file)
-        if not model_file.exists() or not model_file.is_file():
+    if not model_file.exists() or not model_file.is_file():
         raise FileNotFoundError(f"GGUF model file not found: {model_file}")
 
     try:
