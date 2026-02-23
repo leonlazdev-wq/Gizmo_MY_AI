@@ -247,10 +247,17 @@ def create_interface():
 
 
 if __name__ == "__main__":
-
     logger.info("Starting Text Generation Web UI")
     do_cmd_flags_warnings()
-
+    
+    # AUTO-CLEANUP: Remove corrupt model files on startup
+    try:
+        from modules.cleanup_models import cleanup_corrupt_models
+        cleanup_corrupt_models()
+    except Exception as e:
+        logger.error(f"Model cleanup failed: {e}")
+    
+   
     # Load custom settings
     settings_file = None
     if shared.args.settings is not None and Path(shared.args.settings).exists():

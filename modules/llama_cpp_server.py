@@ -11,7 +11,19 @@ import time
 from pathlib import Path
 from typing import Any, List
 
-import llama_cpp_binaries
+try:
+    import llama_cpp_binaries
+except ImportError:
+    # If llama_cpp_binaries is not available, create a fallback
+    class llama_cpp_binaries:
+        @staticmethod
+        def get_binary_path():
+            import shutil
+            binary = shutil.which("llama-server") or shutil.which("llama-cpp-server")
+            if binary:
+                return binary
+            return "PYTHON_SERVER"
+
 import requests
 
 from modules import shared
@@ -316,6 +328,16 @@ class LlamaServer:
         # Resolve server binary
         if self.server_path is None:
             self.server_path = llama_cpp_binaries.get_binary_path()
+        
+        # Check if we got a valid binary path
+        if self.server_path == "PYTHON_SERVER" or not Path(self.server_path).exists():
+            raise RuntimeError(
+                "llama-server binary not found!\n\n"
+                "Please install llama-cpp-python:\n"
+                "  pip install llama-cpp-python\n\n"
+                "Or build llama.cpp and place the binary in:\n"
+                f"  {Path(__file__).parent.parent}/repositories/llama.cpp/build/bin/"
+            )
 
         # --- GPU auto-detection ---
         has_gpu = torch.cuda.is_available()
@@ -323,11 +345,15 @@ class LlamaServer:
 
         if not has_gpu:
             logger.warning("No GPU detected → running llama.cpp in CPU-only mode")
+            # Force CPU settings
+            if shared.args.gpu_layers > 0:
+                logger.info(f"Overriding gpu_layers from {shared.args.gpu_layers} to 0 (CPU mode)")
+                gpu_layers = 0
 
         # Build base command
         cmd = [
-            self.server_path,
-            "--model", self.model_path,
+            str(self.server_path),
+            "--model", str(self.model_path),
             "--ctx-size", str(shared.args.ctx_size),
             "--batch-size", str(shared.args.batch_size),
             "--ubatch-size", str(shared.args.ubatch_size),
@@ -335,12 +361,14 @@ class LlamaServer:
             "--no-webui",
         ]
 
-        # GPU flags ONLY if GPU exists
+        # GPU flags ONLY if GPU exists and gpu_layers > 0
         if has_gpu and gpu_layers > 0:
             cmd += ["--gpu-layers", str(gpu_layers)]
-            cmd += ["--flash-attn", "on"]
-        else:
-            cmd.append("--flash-attn")  # safe no-op on CPU
+            # Flash attention only works on GPU
+            try:
+                cmd += ["--flash-attn"]
+            except:
+                pass
 
         # Optional performance flags
         if shared.args.threads > 0:
@@ -399,18 +427,24 @@ class LlamaServer:
             if path.is_file():
                 model_file = path
             else:
-                model_file = sorted(path.glob('*.gguf'))[0]
+                gguf_files = sorted(path.glob('*.gguf'))
+                if gguf_files:
+                    model_file = gguf_files[0]
+                else:
+                    logger.warning(f"No GGUF files found for draft model: {path}")
+                    model_file = None
 
-            cmd += ["--model-draft", str(model_file)]
+            if model_file:
+                cmd += ["--model-draft", str(model_file)]
 
-            if shared.args.draft_max > 0:
-                cmd += ["--draft-max", str(shared.args.draft_max)]
-            if shared.args.gpu_layers_draft > 0:
-                cmd += ["--gpu-layers-draft", str(shared.args.gpu_layers_draft)]
-            if shared.args.device_draft:
-                cmd += ["--device-draft", shared.args.device_draft]
-            if shared.args.ctx_size_draft > 0:
-                cmd += ["--ctx-size-draft", str(shared.args.ctx_size_draft)]
+                if shared.args.draft_max > 0:
+                    cmd += ["--draft-max", str(shared.args.draft_max)]
+                if shared.args.gpu_layers_draft > 0:
+                    cmd += ["--gpu-layers-draft", str(shared.args.gpu_layers_draft)]
+                if shared.args.device_draft:
+                    cmd += ["--device-draft", shared.args.device_draft]
+                if shared.args.ctx_size_draft > 0:
+                    cmd += ["--ctx-size-draft", str(shared.args.ctx_size_draft)]
 
         # Streaming LLM
         if shared.args.streaming_llm:
@@ -443,14 +477,16 @@ class LlamaServer:
         env = os.environ.copy()
         if os.name == "posix":
             current_path = env.get('LD_LIBRARY_PATH', '')
+            server_dir = os.path.dirname(str(self.server_path))
             if current_path:
-                env['LD_LIBRARY_PATH'] = f"{current_path}:{os.path.dirname(self.server_path)}"
+                env['LD_LIBRARY_PATH'] = f"{current_path}:{server_dir}"
             else:
-                env['LD_LIBRARY_PATH'] = os.path.dirname(self.server_path)
+                env['LD_LIBRARY_PATH'] = server_dir
 
         # Log launch config
         logger.info(
-            f"llama.cpp launch | GPU={has_gpu} | gpu_layers={gpu_layers} | ctx={shared.args.ctx_size} | cache={cache_type}"
+            f"llama.cpp launch | GPU={has_gpu} | gpu_layers={gpu_layers} | "
+            f"ctx={shared.args.ctx_size} | cache={cache_type}"
         )
 
         if shared.args.verbose:
@@ -459,12 +495,19 @@ class LlamaServer:
             print()
 
         # Launch process
-        self.process = subprocess.Popen(
-            cmd,
-            stderr=subprocess.PIPE,
-            bufsize=0,
-            env=env
-        )
+        try:
+            self.process = subprocess.Popen(
+                cmd,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,  # Suppress stdout
+                bufsize=0,
+                env=env
+            )
+        except FileNotFoundError:
+            raise RuntimeError(
+                f"Failed to start llama-server: Binary not found at {self.server_path}\n"
+                "Please install llama-cpp-python or build llama.cpp manually."
+            )
 
         threading.Thread(
             target=filter_stderr_with_progress,
@@ -474,24 +517,37 @@ class LlamaServer:
 
         # Wait for health endpoint
         health_url = f"http://127.0.0.1:{self.port}/health"
-        while True:
+        max_wait = 120  # 2 minutes max
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait:
             if self.process.poll() is not None:
                 raise RuntimeError(
-                    f"llama.cpp server exited with code {self.process.returncode}"
+                    f"llama.cpp server exited with code {self.process.returncode}\n"
+                    f"Check the server log for errors."
                 )
 
             try:
-                if self.session.get(health_url).status_code == 200:
+                response = self.session.get(health_url, timeout=1)
+                if response.status_code == 200:
                     break
             except Exception:
                 pass
 
             time.sleep(1)
+        else:
+            # Timeout reached
+            self.stop()
+            raise RuntimeError(
+                f"llama.cpp server failed to start within {max_wait} seconds\n"
+                "The server may be taking too long to load the model."
+            )
 
         # Fetch model metadata
         self._get_vocabulary_size()
         self._get_bos_token()
 
+        logger.info(f"llama.cpp server ready on port {self.port}")
         return self.port
 
     def __enter__(self):

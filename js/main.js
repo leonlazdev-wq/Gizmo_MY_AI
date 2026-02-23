@@ -1105,3 +1105,65 @@ document.fonts.addEventListener("loadingdone", (event) => {
   // Initial call to set the margin based on current state
   updateMargin();
 })();
+
+
+//------------------------------------------------
+// Connector quick actions (+ button near chat input)
+//------------------------------------------------
+function ensureConnectorFab() {
+  const chatInput = document.getElementById('chat-input');
+  if (!chatInput || chatInput.querySelector('.gizmo-connector-fab')) return;
+
+  const connectorItems = [
+    {name: 'GitHub', desc: 'Link repos and issues', url: 'https://github.com/settings/tokens'},
+    {name: 'Google Docs', desc: 'Read/write documents', url: 'https://developers.google.com/docs/api/quickstart/python'},
+    {name: 'Google Slides', desc: 'Create/update presentations', url: 'https://developers.google.com/slides/api/quickstart/python'},
+    {name: 'Google Drive', desc: 'Browse files and folders', url: 'https://developers.google.com/drive/api/quickstart/python'},
+    {name: 'Notion', desc: 'Sync pages and tasks', url: 'https://www.notion.so/my-integrations'},
+    {name: 'Slack', desc: 'Post updates to channels', url: 'https://api.slack.com/apps'},
+    {name: 'Jira', desc: 'Create and update tickets', url: 'https://developer.atlassian.com/cloud/jira/platform/getting-started/'},
+  ];
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'gizmo-connector-wrap';
+
+  const fab = document.createElement('button');
+  fab.className = 'gizmo-connector-fab';
+  fab.type = 'button';
+  fab.title = 'Open connectors';
+  fab.textContent = '+';
+
+  const panel = document.createElement('div');
+  panel.className = 'gizmo-connector-panel';
+  panel.innerHTML = '<div class="gizmo-connector-title">Connectors</div>';
+
+  connectorItems.forEach((item) => {
+    const link = document.createElement('a');
+    link.className = 'gizmo-connector-item';
+    link.href = item.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.innerHTML = `<span class="name">${item.name}</span><span class="desc">${item.desc}</span>`;
+    panel.appendChild(link);
+  });
+
+  fab.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    panel.classList.toggle('open');
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!wrapper.contains(event.target)) {
+      panel.classList.remove('open');
+    }
+  });
+
+  wrapper.appendChild(fab);
+  wrapper.appendChild(panel);
+  chatInput.appendChild(wrapper);
+}
+
+ensureConnectorFab();
+const connectorObserver = new MutationObserver(() => ensureConnectorFab());
+connectorObserver.observe(document.body, {childList: true, subtree: true});

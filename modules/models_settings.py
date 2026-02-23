@@ -30,7 +30,6 @@ def get_model_metadata(model):
     model_path = resolve_model_path(model)
     model_settings = {}
 
-    # Get settings from user_data/models/config.yaml and user_data/models/config-user.yaml
     settings = shared.model_config
     for pat in settings:
         if re.match(pat.lower(), Path(model).name.lower()):
@@ -59,13 +58,16 @@ def get_model_metadata(model):
         else:
             gguf_files = list(path.glob('*.gguf'))
             if not gguf_files:
-                error_msg = f"No .gguf models found in directory: {path}"
-                logger.error(error_msg)
-                raise FileNotFoundError(error_msg)
+                logger.warning(f"No .gguf models found in directory: {path}")
+                return model_settings
 
             model_file = gguf_files[0]
 
+        # ── FIX: load_gguf_metadata_with_cache can return None if file is missing ──
         metadata = load_gguf_metadata_with_cache(model_file)
+        if not metadata:
+            logger.warning(f"Could not read metadata from {model_file.name} — using defaults.")
+            return model_settings
 
         for k in metadata:
             if k.endswith('.context_length'):
@@ -137,13 +139,11 @@ def get_model_metadata(model):
     path = model_path / 'tokenizer_config.json'
     template = None
 
-    # 1. Prioritize reading from chat_template.jinja if it exists
     jinja_path = model_path / 'chat_template.jinja'
     if jinja_path.exists():
         with open(jinja_path, 'r', encoding='utf-8') as f:
             template = f.read()
 
-    # 2. If no .jinja file, try chat_template.json
     if template is None:
         json_template_path = model_path / 'chat_template.json'
         if json_template_path.exists():
@@ -152,17 +152,14 @@ def get_model_metadata(model):
                 if 'chat_template' in json_data:
                     template = json_data['chat_template']
 
-    # 3. Fall back to tokenizer_config.json metadata
     if path.exists():
         metadata = json.loads(open(path, 'r', encoding='utf-8').read())
 
-        # Only read from metadata if we haven't already loaded from .jinja or .json
         if template is None and 'chat_template' in metadata:
             template = metadata['chat_template']
             if isinstance(template, list):
                 template = template[0]['template']
 
-        # 4. If a template was found from any source, process it
         if template:
             shared.bos_token = '<s>'
             shared.eos_token = '</s>'
@@ -183,11 +180,9 @@ def get_model_metadata(model):
     if 'instruction_template' not in model_settings:
         model_settings['instruction_template'] = 'Alpaca'
 
-    # Ignore rope_freq_base if set to the default value
     if 'rope_freq_base' in model_settings and model_settings['rope_freq_base'] == 10000:
         model_settings.pop('rope_freq_base')
 
-    # Apply user settings from user_data/models/config-user.yaml
     settings = shared.user_config
     for pat in settings:
         if re.match(pat.lower(), Path(model).name.lower()):
@@ -198,7 +193,6 @@ def get_model_metadata(model):
 
                 model_settings[new_k] = settings[pat][k]
 
-    # Load instruction template if defined by name rather than by value
     if model_settings['instruction_template'] != 'Custom (obtained from model metadata)':
         model_settings['instruction_template_str'] = chat.load_instruction_template(model_settings['instruction_template'])
 
@@ -230,10 +224,7 @@ def infer_loader(model_name, model_settings, hf_quant_method=None):
 
 
 def update_model_parameters(state, initial=False):
-    '''
-    UI: update the command-line arguments based on the interface values
-    '''
-    elements = ui.list_model_elements()  # the names of the parameters
+    elements = ui.list_model_elements()
 
     for i, element in enumerate(elements):
         if element not in state:
@@ -250,9 +241,6 @@ def update_model_parameters(state, initial=False):
 
 
 def apply_model_settings_to_state(model, state):
-    '''
-    UI: update the state variable with the model settings
-    '''
     model_settings = get_model_metadata(model)
     if 'loader' in model_settings:
         loader = model_settings.pop('loader')
@@ -260,10 +248,9 @@ def apply_model_settings_to_state(model, state):
             state['loader'] = loader
 
     for k in model_settings:
-        if k in state and k != 'gpu_layers':  # Skip gpu_layers, handle separately
+        if k in state and k != 'gpu_layers':
             state[k] = model_settings[k]
 
-    # Handle GPU layers and VRAM update for llama.cpp
     if state['loader'] == 'llama.cpp' and 'gpu_layers' in model_settings:
         vram_info, gpu_layers_update = update_gpu_layers_and_vram(
             state['loader'],
@@ -281,15 +268,12 @@ def apply_model_settings_to_state(model, state):
 
 
 def save_model_settings(model, state):
-    '''
-    Save the settings for this model to user_data/models/config-user.yaml
-    '''
     if model == 'None':
         yield ("Not saving the settings because no model is selected in the menu.")
         return
 
     user_config = shared.load_user_config()
-    model_regex = Path(model).name + '$'  # For exact matches
+    model_regex = Path(model).name + '$'
     if model_regex not in user_config:
         user_config[model_regex] = {}
 
@@ -308,15 +292,12 @@ def save_model_settings(model, state):
 
 
 def save_instruction_template(model, template):
-    '''
-    Similar to the function above, but it saves only the instruction template.
-    '''
     if model == 'None':
         yield ("Not saving the template because no model is selected in the menu.")
         return
 
     user_config = shared.load_user_config()
-    model_regex = Path(model).name + '$'  # For exact matches
+    model_regex = Path(model).name + '$'
     if model_regex not in user_config:
         user_config[model_regex] = {}
 
@@ -333,102 +314,136 @@ def save_instruction_template(model, template):
         f.write(output)
 
     if template == 'None':
-        yield (f"Instruction template for `{model}` unset in `{p}`, as the value for template was `{template}`.")
+        yield (f"Instruction template for `{model}` unset in `{p}`.")
     else:
         yield (f"Instruction template for `{model}` saved to `{p}` as `{template}`.")
 
 
 @functools.lru_cache(maxsize=1)
 def load_gguf_metadata_with_cache(model_file):
-    return metadata_gguf.load_metadata(model_file)
+    """
+    Load GGUF metadata with caching and full validation.
+    Returns empty dict (not None) if file is missing/corrupt so callers don't crash.
+    """
+    model_file = Path(model_file) if not isinstance(model_file, Path) else model_file
+
+    # File must exist
+    if not model_file.exists():
+        logger.warning(f"Model file not found: {model_file}")
+        return {}
+
+    # File must be large enough to be a real GGUF
+    try:
+        file_size = model_file.stat().st_size
+    except Exception as e:
+        logger.error(f"Cannot read file size for {model_file.name}: {e}")
+        return {}
+
+    MIN_VALID_SIZE = 1024  # 1 KB
+
+    if file_size < MIN_VALID_SIZE:
+        logger.warning(f"Model file too small ({file_size} bytes): {model_file.name} — skipping.")
+        try:
+            model_file.unlink()
+            logger.info(f"Deleted corrupt file: {model_file.name}")
+        except Exception as e:
+            logger.error(f"Could not delete corrupt file: {e}")
+        return {}
+
+    # Delegate to metadata_gguf parser
+    result = metadata_gguf.load_metadata(model_file)
+    return result if result else {}
 
 
 def get_model_size_mb(model_file: Path) -> float:
     filename = model_file.name
 
-    # Check for multipart pattern
     match = re.match(r'(.+)-\d+-of-\d+\.gguf$', filename)
 
     if match:
-        # It's a multipart file, find all matching parts
         base_pattern = match.group(1)
         part_files = sorted(model_file.parent.glob(f'{base_pattern}-*-of-*.gguf'))
         total_size = sum(p.stat().st_size for p in part_files)
     else:
-        # Single part
         total_size = model_file.stat().st_size
 
-    return total_size / (1024 ** 2)  # Return size in MB
+    return total_size / (1024 ** 2)
 
 
 def estimate_vram(gguf_file, gpu_layers, ctx_size, cache_type):
     model_file = resolve_model_path(gguf_file)
-    if not model_file.exists() or not model_file.is_file():
+        if not model_file.exists() or not model_file.is_file():
         raise FileNotFoundError(f"GGUF model file not found: {model_file}")
 
-    metadata = load_gguf_metadata_with_cache(model_file)
-    size_in_mb = get_model_size_mb(model_file)
+    try:
+        model_file = resolve_model_path(gguf_file)
 
-    # Extract values from metadata
-    n_layers = None
-    n_kv_heads = None
-    n_attention_heads = None  # Fallback for models without separate KV heads
-    embedding_dim = None
+        # ── FIX: guard against missing file ───────────────────────────────────
+        if not model_file.exists():
+            logger.warning(f"estimate_vram: model file not found: {model_file}")
+            return 0
 
-    for key, value in metadata.items():
-        if key.endswith('.block_count'):
-            n_layers = value
-        elif key.endswith('.attention.head_count_kv'):
-            n_kv_heads = max(value) if isinstance(value, list) else value
-        elif key.endswith('.attention.head_count'):
-            n_attention_heads = max(value) if isinstance(value, list) else value
-        elif key.endswith('.embedding_length'):
-            embedding_dim = value
+        metadata = load_gguf_metadata_with_cache(model_file)
 
-    if n_kv_heads is None:
-        n_kv_heads = n_attention_heads
+        # ── FIX: guard against empty/None metadata ─────────────────────────────
+        if not metadata:
+            logger.warning(f"estimate_vram: no metadata for {model_file.name} — returning 0")
+            return 0
 
-    if gpu_layers > n_layers:
-        gpu_layers = n_layers
+        size_in_mb = get_model_size_mb(model_file)
 
-    # Convert cache_type to numeric
-    if cache_type == 'q4_0':
-        cache_type = 4
-    elif cache_type == 'q8_0':
-        cache_type = 8
-    else:
-        cache_type = 16
+        n_layers = None
+        n_kv_heads = None
+        n_attention_heads = None
+        embedding_dim = None
 
-    # Derived features
-    size_per_layer = size_in_mb / max(n_layers, 1e-6)
-    kv_cache_factor = n_kv_heads * cache_type * ctx_size
-    embedding_per_context = embedding_dim / ctx_size
+        for key, value in metadata.items():
+            if key.endswith('.block_count'):
+                n_layers = value
+            elif key.endswith('.attention.head_count_kv'):
+                n_kv_heads = max(value) if isinstance(value, list) else value
+            elif key.endswith('.attention.head_count'):
+                n_attention_heads = max(value) if isinstance(value, list) else value
+            elif key.endswith('.embedding_length'):
+                embedding_dim = value
 
-    # Calculate VRAM using the model
-    # Details: https://oobabooga.github.io/blog/posts/gguf-vram-formula/
-    vram = (
-        (size_per_layer - 17.99552795246051 + 3.148552680382576e-05 * kv_cache_factor)
-        * (gpu_layers + max(0.9690636483914102, cache_type - (floor(50.77817218646521 * embedding_per_context) + 9.987899908205632)))
-        + 1516.522943869404
-    )
+        # ── FIX: guard against None values from metadata ───────────────────────
+        if n_layers is None or embedding_dim is None:
+            logger.warning("estimate_vram: incomplete metadata — returning 0")
+            return 0
 
-    return vram
+        if n_kv_heads is None:
+            n_kv_heads = n_attention_heads or 1
+
+        if gpu_layers > n_layers:
+            gpu_layers = n_layers
+
+        if cache_type == 'q4_0':
+            cache_type_num = 4
+        elif cache_type == 'q8_0':
+            cache_type_num = 8
+        else:
+            cache_type_num = 16
+
+        size_per_layer = size_in_mb / max(n_layers, 1e-6)
+        kv_cache_factor = n_kv_heads * cache_type_num * ctx_size
+        embedding_per_context = embedding_dim / max(ctx_size, 1)
+
+        vram = (
+            (size_per_layer - 17.99552795246051 + 3.148552680382576e-05 * kv_cache_factor)
+            * (gpu_layers + max(0.9690636483914102, cache_type_num - (floor(50.77817218646521 * embedding_per_context) + 9.987899908205632)))
+            + 1516.522943869404
+        )
+
+        return max(vram, 0)
+
+    except Exception as e:
+        logger.warning(f"estimate_vram: unexpected error — {e}")
+        return 0
 
 
 def get_nvidia_vram(return_free=True):
-    """
-    Calculates VRAM statistics across all NVIDIA GPUs by parsing nvidia-smi output.
-
-    Args:
-        return_free (bool): If True, returns free VRAM. If False, returns total VRAM.
-
-    Returns:
-        int: Either the total free VRAM or total VRAM in MiB summed across all detected NVIDIA GPUs.
-             Returns -1 if nvidia-smi command fails (not found, error, etc.).
-             Returns 0 if nvidia-smi succeeds but no GPU memory info found.
-    """
     try:
-        # Execute nvidia-smi command
         result = subprocess.run(
             ['nvidia-smi'],
             capture_output=True,
@@ -436,19 +451,13 @@ def get_nvidia_vram(return_free=True):
             check=False
         )
 
-        # Check if nvidia-smi returned an error
         if result.returncode != 0:
             return -1
 
-        # Parse the output for memory usage patterns
         output = result.stdout
-
-        # Find memory usage like "XXXXMiB / YYYYMiB"
-        # Captures used and total memory for each GPU
         matches = re.findall(r"(\d+)\s*MiB\s*/\s*(\d+)\s*MiB", output)
 
         if not matches:
-            # No GPUs found in expected format
             return 0
 
         total_vram_mib = 0
@@ -461,35 +470,27 @@ def get_nvidia_vram(return_free=True):
                 total_vram_mib += total_mib
                 total_free_vram_mib += (total_mib - used_mib)
             except ValueError:
-                # Skip malformed entries
                 pass
 
-        # Return either free or total VRAM based on the flag
         return total_free_vram_mib if return_free else total_vram_mib
 
     except FileNotFoundError:
-        # nvidia-smi not found (likely no NVIDIA drivers installed)
         return -1
     except Exception:
-        # Handle any other unexpected exceptions
         return -1
 
 
 def update_gpu_layers_and_vram(loader, model, gpu_layers, ctx_size, cache_type, auto_adjust=False, for_ui=True):
     """
     Unified function to handle GPU layers and VRAM updates.
-
-    Args:
-        for_ui: If True, returns Gradio updates. If False, returns raw values.
-
-    Returns:
-        - If for_ui=True: (vram_info_update, gpu_layers_update) or just vram_info_update
-        - If for_ui=False: (vram_usage, adjusted_layers) or just vram_usage
+    Safe — will never crash even if model file is missing.
     """
+    BLANK_VRAM = "<div id=\"vram-info\">Estimated VRAM to load the model:</div>"
+
+    # ── FIX: early-out if model is not a valid GGUF ────────────────────────────
     if loader != 'llama.cpp' or model in ["None", None] or not model.endswith(".gguf"):
-        vram_info = "<div id=\"vram-info\"'>Estimated VRAM to load the model:</div>"
         if for_ui:
-            return (vram_info, gr.update()) if auto_adjust else vram_info
+            return (BLANK_VRAM, gr.update()) if auto_adjust else BLANK_VRAM
         else:
             return (0, gpu_layers) if auto_adjust else 0
 
@@ -505,24 +506,41 @@ def update_gpu_layers_and_vram(loader, model, gpu_layers, ctx_size, cache_type, 
         else:
             return (0, gpu_layers) if auto_adjust else 0
 
-    # Get model settings including user preferences
-    model_settings = get_model_metadata(model)
+    # ── FIX: check file exists before doing anything ───────────────────────────
+    try:
+        model_file = resolve_model_path(model)
+        if not model_file.exists():
+            logger.warning(f"update_gpu_layers_and_vram: model not found: {model}")
+            if for_ui:
+                return (BLANK_VRAM, gr.update()) if auto_adjust else BLANK_VRAM
+            else:
+                return (0, gpu_layers) if auto_adjust else 0
+    except Exception:
+        if for_ui:
+            return (BLANK_VRAM, gr.update()) if auto_adjust else BLANK_VRAM
+        else:
+            return (0, gpu_layers) if auto_adjust else 0
+
+    try:
+        model_settings = get_model_metadata(model)
+    except Exception as e:
+        logger.warning(f"update_gpu_layers_and_vram: get_model_metadata failed: {e}")
+        if for_ui:
+            return (BLANK_VRAM, gr.update()) if auto_adjust else BLANK_VRAM
+        else:
+            return (0, gpu_layers) if auto_adjust else 0
 
     current_layers = gpu_layers
     max_layers = model_settings.get('max_gpu_layers', 256)
 
     if auto_adjust:
-        # Check if this is a user-saved setting
         user_config = shared.user_config
         model_regex = Path(model).name + '$'
         has_user_setting = model_regex in user_config and 'gpu_layers' in user_config[model_regex]
 
         if not has_user_setting:
-            # No user setting, auto-adjust from the maximum
-            current_layers = max_layers  # Start from max
+            current_layers = max_layers
 
-            # Auto-adjust based on available/total VRAM
-            # If a model is loaded and it's for the UI, use the total VRAM to avoid confusion
             return_free = False if (for_ui and shared.model_name not in [None, 'None']) else True
             available_vram = get_nvidia_vram(return_free=return_free)
             if available_vram > 0:
@@ -530,11 +548,10 @@ def update_gpu_layers_and_vram(loader, model, gpu_layers, ctx_size, cache_type, 
                 while current_layers > 0 and estimate_vram(model, current_layers, ctx_size, cache_type) > available_vram - tolerance:
                     current_layers -= 1
 
-    # Calculate VRAM with current layers
     vram_usage = estimate_vram(model, current_layers, ctx_size, cache_type)
 
     if for_ui:
-        vram_info = f"<div id=\"vram-info\"'>Estimated VRAM to load the model: <span class=\"value\">{vram_usage:.0f} MiB</span></div>"
+        vram_info = f"<div id=\"vram-info\">Estimated VRAM to load the model: <span class=\"value\">{vram_usage:.0f} MiB</span></div>"
         if auto_adjust:
             return vram_info, gr.update(value=current_layers, maximum=max_layers)
         else:
