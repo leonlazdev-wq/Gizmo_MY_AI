@@ -94,6 +94,33 @@ def create_ui():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
 
+                with gr.Row(elem_id='chat-automation-row'):
+                    with gr.Accordion('Custom AI style (always visible in Chat tab)', open=False):
+                        shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable custom style/persona')
+                        shared.gradio['custom_style_prompt'] = gr.Textbox(
+                            label='How the AI should behave',
+                            lines=4,
+                            placeholder='Example: Be concise, act like my research co-worker, always include next steps.',
+                            elem_classes=['add_scrollbar']
+                        )
+
+                    with gr.Accordion('Google Workspace actions (Docs/Slides)', open=False):
+                        shared.gradio['gworkspace_credentials_path'] = gr.Textbox(
+                            label='Service account credentials JSON path',
+                            placeholder='/path/to/google-service-account.json',
+                            elem_classes=['add_scrollbar']
+                        )
+                        shared.gradio['google_doc_id'] = gr.Textbox(label='Google Doc ID', placeholder='1Abc...')
+                        shared.gradio['google_doc_text'] = gr.Textbox(label='Text to write to Google Doc', lines=3, elem_classes=['add_scrollbar'])
+                        shared.gradio['google_doc_write'] = gr.Button('Write to Google Doc', elem_classes=['refresh-button'])
+
+                        shared.gradio['google_slides_id'] = gr.Textbox(label='Google Slides Presentation ID', placeholder='1Abc...')
+                        with gr.Row():
+                            shared.gradio['google_slide_number'] = gr.Number(value=1, precision=0, minimum=1, label='Slide number')
+                            shared.gradio['google_slide_image_query'] = gr.Textbox(label='Image query', placeholder='clean modern teamwork photo')
+                        shared.gradio['google_slide_add_image'] = gr.Button('Find image and place on slide', elem_classes=['refresh-button'])
+                        shared.gradio['google_workspace_status'] = gr.Markdown('')
+
         # Hover menu buttons
         with gr.Column(elem_id='chat-buttons'):
             shared.gradio['Regenerate'] = gr.Button('Regenerate (Ctrl + Enter)', elem_id='Regenerate')
