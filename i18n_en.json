@@ -1,0 +1,10 @@
+{
+  "workflows_tab": "Workflows",
+  "forms_tab": "Forms",
+  "analytics_tab": "Analytics",
+  "integrations_settings": "Integrations (opt-in)",
+  "marketplace_title": "Marketplace",
+  "sso_security_title": "Security: SSO / OAuth",
+  "devtests_title": "Developer: Automated Testing & CI",
+  "collab_title": "Collaborators & RBAC"
+}

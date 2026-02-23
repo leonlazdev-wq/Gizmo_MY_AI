@@ -1,0 +1,6 @@
+{
+  "name": "sample_plugin",
+  "description": "Sample local plugin for tests",
+  "rating": 4,
+  "scopes": ["tool:read"]
+}
