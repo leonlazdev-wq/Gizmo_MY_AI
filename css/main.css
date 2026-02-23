@@ -1953,12 +1953,3 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     font-size: 12px;
     opacity: .8;
 }
-
-#chat-automation-row {
-    margin-top: 6px;
-    gap: 10px;
-}
-
-#chat-automation-row > .column {
-    min-width: 320px;
-}
