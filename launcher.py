@@ -829,7 +829,7 @@ def build_launch_wrapper(python_exe):
     model_flag = f"'--model', '{MODEL_FILE}'," if (USE_MODEL and MODEL_FILE) else "# no model"
 
     code = f"""#!/usr/bin/env python3
-# MY-AI-Gizmo launch wrapper v3.4 — Gradio share=True
+# MY-AI-Gizmo launch wrapper v3.5 — Gradio share=True
 import sys, os
 {cuda_block}
 os.environ['MPLBACKEND']         = 'Agg'
@@ -852,10 +852,25 @@ for f in flags:
     if f not in sys.argv:
         sys.argv.append(f)
 
-print("[WRAPPER v3.4] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
+print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
 try:
     import matplotlib; matplotlib.use('Agg', force=True)
 except Exception: pass
+
+# Gradio compatibility shim for environments where Timer is unavailable (e.g. 4.37.x)
+try:
+    import gradio as gr
+    if not hasattr(gr, 'Timer'):
+        class _GizmoTimerShim:
+            def __init__(self, *args, **kwargs):
+                self.args = args
+                self.kwargs = kwargs
+            def tick(self, *args, **kwargs):
+                return None
+        gr.Timer = _GizmoTimerShim
+        print('[WRAPPER] Applied gr.Timer compatibility shim')
+except Exception as _gradio_exc:
+    print(f'[WRAPPER] gradio compatibility shim skipped: {{_gradio_exc}}')
 
 import runpy
 runpy.run_path('server.py', run_name='__main__')
