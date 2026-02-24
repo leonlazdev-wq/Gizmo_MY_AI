@@ -274,6 +274,9 @@ def create_character_settings_ui():
                 shared.gradio['your_picture'] = gr.Image(label='Your picture', type='filepath', value=Image.open(Path('user_data/cache/pfp_me.png')) if Path('user_data/cache/pfp_me.png').exists() else None, interactive=not mu)
 
 
+    print("[info] registered shared.gradio keys:", list(shared.gradio.keys()))
+
+
 def create_chat_settings_ui():
     mu = shared.args.multi_user
     with gr.Tab('Instruction template'):
@@ -330,6 +333,8 @@ def create_event_handlers():
         gradio('adaptive_output'),
         show_progress=False,
     )
+
+    _ensure_adaptive_keys()
 
     _ensure_adaptive_keys()
 
