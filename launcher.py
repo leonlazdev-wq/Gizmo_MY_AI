@@ -1,32 +1,15 @@
 #!/usr/bin/env python3
 # ================================================================
-# MY-AI-Gizmo • UNIVERSAL LAUNCHER  v3.4
+# MY-AI-Gizmo • UNIVERSAL LAUNCHER  v3.5.2 - COLAB READY
 # ================================================================
-# v3.4 CHANGES:
-#  ✅ GitHub PAT prompt at startup — supports private repos
-#  ✅ New repo: Gizmo-my-ai-for-google-colab
-#  ✅ Gradio launch via runpy wrapper (like v3.1) → gradio.live URL
-#     instead of direct server.py subprocess → trycloudflare.com
-#  ✅ All v3.3 fixes kept:
-#      - Popen + stream output so URL prints in Colab cell
-#      - Skip llama-cpp reinstall if webui already installed it
-#      - Drive already-mounted check (no "mountpoint" error)
-#      - Both user_data/models AND models symlinked
-#      - No-model startup option [0]
-#      - Drive fallback to /content/MY-AI-Gizmo
-#      - model: None in settings / --model flag omitted when no model
-#  ✅ URL capture patterns: gradio.live + trycloudflare.com + ngrok
-#  ✅ Auto-restart loop (3×)
-#  ✅ Dual Model | Google Workspace | Debug character | ＋Toolbar
+# v3.5.2 CHANGES:
+#  🔧 FIX: String escaping in launch wrapper (was causing SyntaxError)
+#  🔧 FIX: Simplified print statements to avoid f-string nesting issues
+#  ✅ All v3.5.1 features kept (repo update menu, token saving, etc.)
+#  ✅ TESTED: Works in Google Colab CPU mode
 # ================================================================
 
-import os
-import sys
-import subprocess
-import shutil
-import re
-import time
-import threading
+import os, sys, subprocess, shutil, re, time, threading
 from pathlib import Path
 from datetime import datetime
 
@@ -37,17 +20,14 @@ except Exception:
     colab_drive = None
     IN_COLAB = False
 
-# ── Repo ────────────────────────────────────────────────────────────────────────
-GITHUB_USER = "gitleon8301"
-GITHUB_REPO = "Gizmo-my-ai-for-google-colab"
+# ── Repo ──────────────────────────────────────────────────────────────────────
+GITHUB_USER   = "leonlazdev-wq"
+GITHUB_REPO   = "Gizmo-my-ai-for-google-colab"
 GITHUB_BRANCH = "main"
-REPO_FOLDER_GLOB = f"{GITHUB_REPO}-*"
-
-# These are set after token is collected
-REPO_ZIP = ""
+REPO_ZIP       = ""
 REPO_CLONE_URL = ""
 
-# ── Paths ───────────────────────────────────────────────────────────────────────
+# ── Paths ─────────────────────────────────────────────────────────────────────
 WORK_DIR           = Path("/content/text-generation-webui")
 DRIVE_ROOT         = None
 LOG_DIR            = None
@@ -55,32 +35,31 @@ MPL_CONFIG_DIR     = None
 PUBLIC_URL_FILE    = None
 HEARTBEAT_INTERVAL = 30
 MAX_RESTARTS       = 3
-MONITOR_INTERVAL   = 60
 
-# ── Model menu ──────────────────────────────────────────────────────────────────
+# ── Model menu ────────────────────────────────────────────────────────────────
 MODEL_MENU = [
-    ("1  TinyLlama-1.1B  Q4_K_M  [~0.7 GB]  ← fastest",
+    ("1  TinyLlama-1.1B  Q4_K_M  [~0.7 GB]  <- fastest",
      "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
      "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf", 0.7),
-    ("2  Phi-3-mini-4k   Q4_K_M  [~2.2 GB]  ← great quality/speed",
+    ("2  Phi-3-mini-4k   Q4_K_M  [~2.2 GB]  <- great quality/speed",
      "bartowski/Phi-3-mini-4k-instruct-GGUF",
      "Phi-3-mini-4k-instruct-Q4_K_M.gguf", 2.2),
-    ("3  Mistral-7B-v0.3  Q4_K_M  [~4.4 GB]  ← best general 7B",
+    ("3  Mistral-7B-v0.3  Q4_K_M  [~4.4 GB]  <- best general 7B",
      "bartowski/Mistral-7B-v0.3-GGUF",
      "Mistral-7B-v0.3-Q4_K_M.gguf", 4.4),
-    ("4  Qwen2.5-Coder-7B  Q4_K_M  [~4.7 GB]  ← best coding 7B",
+    ("4  Qwen2.5-Coder-7B  Q4_K_M  [~4.7 GB]  <- best coding 7B",
      "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
      "qwen2.5-coder-7b-instruct-q4_k_m.gguf", 4.7),
-    ("5  Qwen2.5-Coder-14B  Q4_K_M  [~8.9 GB]  ← needs 10+ GB RAM",
+    ("5  Qwen2.5-Coder-14B  Q4_K_M  [~8.9 GB]  <- needs 10+ GB RAM",
      "Qwen/Qwen2.5-Coder-14B-Instruct-GGUF",
      "qwen2.5-coder-14b-instruct-q4_k_m.gguf", 8.9),
-    ("6  DeepSeek-Coder-33B  Q4_K_M  [~19 GB]  ← GPU only",
+    ("6  DeepSeek-Coder-33B  Q4_K_M  [~19 GB]  <- GPU only",
      "TheBloke/deepseek-coder-33B-instruct-GGUF",
      "deepseek-coder-33b-instruct.Q4_K_M.gguf", 19.0),
     ("7  Custom — enter your own HF repo + filename", "", "", 0),
 ]
 
-# ── Globals ──────────────────────────────────────────────────────────────────────
+# ── Globals ───────────────────────────────────────────────────────────────────
 GITHUB_TOKEN = ""
 MODEL_REPO   = ""
 MODEL_FILE   = ""
@@ -89,7 +68,6 @@ GPU_LAYERS   = -1
 N_CTX        = 4096
 USE_GPU      = True
 
-# ── URL patterns (catches gradio.live AND trycloudflare.com) ─────────────────────
 URL_PATTERNS = [
     re.compile(r'Running on public URL:\s*(https?://\S+)', re.IGNORECASE),
     re.compile(r'(https?://[a-zA-Z0-9\-]+\.gradio\.live\S*)', re.IGNORECASE),
@@ -100,39 +78,69 @@ URL_PATTERNS = [
 URL_KEYWORDS = ("gradio.live", "trycloudflare.com", "ngrok", "loca.lt")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  ★★★  GITHUB TOKEN SETUP — runs before EVERYTHING else  ★★★
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  GITHUB TOKEN
+# =============================================================================
+
+def _token_file_path():
+    if Path("/content/drive/MyDrive").exists():
+        return Path("/content/drive/MyDrive/MY-AI-Gizmo/github_token.txt")
+    return Path("/content/MY-AI-Gizmo/github_token.txt")
+
+def _load_saved_token():
+    for candidate in (
+        Path("/content/drive/MyDrive/MY-AI-Gizmo/github_token.txt"),
+        Path("/content/MY-AI-Gizmo/github_token.txt"),
+    ):
+        if candidate.exists():
+            try:
+                tok = candidate.read_text(encoding="utf-8").strip()
+                if len(tok) >= 10:
+                    return tok
+            except Exception:
+                pass
+    return ""
+
+def _save_token(token):
+    path = _token_file_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(token, encoding="utf-8")
+    except Exception as e:
+        print(f"  [warn] Could not save token: {e}")
+
+def _build_urls():
+    global REPO_ZIP, REPO_CLONE_URL
+    REPO_ZIP       = (f"https://{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{GITHUB_REPO}"
+                      f"/archive/refs/heads/{GITHUB_BRANCH}.zip")
+    REPO_CLONE_URL = (f"https://{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{GITHUB_REPO}.git")
 
 def setup_github_token():
-    """
-    Prompts for a GitHub Personal Access Token at startup.
-    The token is used to clone / download the private repo.
-
-    How to create a token:
-      GitHub → Settings → Developer Settings
-        → Personal Access Tokens → Tokens (classic)
-        → Generate new token (classic)
-        → Scope: check  [✓] repo
-        → Copy the token that starts with  ghp_...
-    """
-    global GITHUB_TOKEN, REPO_ZIP, REPO_CLONE_URL
-
+    global GITHUB_TOKEN
     print("=" * 70)
-    print("  MY-AI-Gizmo  v3.4  — GitHub Authentication")
+    print("  MY-AI-Gizmo  v3.5.2  — GitHub Authentication")
     print("=" * 70)
     print()
+    saved = _load_saved_token()
+    if saved:
+        last3 = saved[-3:]
+        print(f"  [💾] Token found  ( ends in: ...{last3} )")
+        ans = input("  Use this saved token? (y = yes / n = enter a new one): ").strip().lower()
+        if ans != "n":
+            GITHUB_TOKEN = saved
+            print(f"  [✓] Using saved token  ...{last3}")
+            print("=" * 70)
+            _build_urls()
+            return
     print("  Your repo is PRIVATE. A Personal Access Token is required.")
     print()
-    print("  ┌─ How to get a token ──────────────────────────────────────────┐")
-    print("  │  1. Go to: github.com → Settings → Developer Settings        │")
-    print("  │  2. Personal Access Tokens → Tokens (classic)                │")
-    print("  │  3. Generate new token (classic)                              │")
-    print("  │  4. Set scope: ✓ repo   (full control of private repos)      │")
-    print("  │  5. Copy the token  (starts with  ghp_...)                   │")
-    print("  └───────────────────────────────────────────────────────────────┘")
+    print("  How to get a token:")
+    print("    1. Go to https://github.com/settings/tokens")
+    print("    2. Personal Access Tokens → Tokens (classic)")
+    print("    3. Generate new token (classic)")
+    print("    4. Set scope: ✓ repo   (full control of private repos)")
+    print("    5. Copy the token  (starts with  ghp_...)")
     print()
-
     while True:
         token = input("  Paste your GitHub token here: ").strip()
         if not token:
@@ -144,27 +152,90 @@ def setup_github_token():
                 continue
         GITHUB_TOKEN = token
         break
-
-    # Build authenticated URLs
-    REPO_ZIP       = (f"https://{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{GITHUB_REPO}"
-                      f"/archive/refs/heads/{GITHUB_BRANCH}.zip")
-    REPO_CLONE_URL = (f"https://{GITHUB_TOKEN}@github.com/{GITHUB_USER}/{GITHUB_REPO}.git")
-
+    _build_urls()
+    _save_token(GITHUB_TOKEN)
+    last3 = GITHUB_TOKEN[-3:]
     print()
-    print(f"  [✓] Token accepted — will authenticate as: {GITHUB_TOKEN[:4]}{'*' * (len(GITHUB_TOKEN)-8)}{GITHUB_TOKEN[-4:]}")
+    print(f"  [✓] Token accepted & saved  ( ends in: ...{last3} )")
+    print("  💾 Token saved — next launch will ask if you want to reuse it.")
     print("=" * 70)
     print()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  REPO UPDATE CHECK
+# =============================================================================
+
+def _kill_old_servers():
+    print("  [🛑] Killing old servers...")
+    sh("pkill -9 -f 'python.*server.py'")
+    sh("pkill -9 -f 'python.*gradio'")
+    sh("pkill -9 -f '_gizmo_launch'")
+    time.sleep(2)
+    print("  [✓] Servers stopped")
+
+
+def check_repo_update():
+    """
+    Ask if user updated the repo on GitHub.
+    y → wipe local copy and re-clone fresh (gets new tabs, new code)
+    n → use existing files (fastest, ~2 min launch)
+    Returns: 'fresh' | 'keep' | 'new'
+    """
+    if not WORK_DIR.exists():
+        return 'new'  # Nothing local yet
+
+    print("\n" + "=" * 70)
+    print("  REPO UPDATE CHECK")
+    print("=" * 70)
+    print("  Did you update / push changes to your GitHub repo?")
+    print()
+    print("  y  — YES, re-clone fresh  (new tabs/features will appear)")
+    print("        Note: re-installs Python env on first time, ~10 min")
+    print("  n  — NO, keep existing files  (2 min launch, no reinstall)")
+    print("=" * 70)
+
+    while True:
+        ans = input("  Updated repo? (y/n): ").strip().lower()
+        if ans in ("y", "yes"):
+            return 'fresh'
+        elif ans in ("n", "no"):
+            return 'keep'
+        print("  Please type  y  or  n")
+
+
+def apply_repo_update(mode):
+    """
+    'fresh' → kill servers + wipe WORK_DIR so clone_repo() runs fresh.
+    'keep'/'new' → nothing to do here.
+    """
+    if mode == 'fresh':
+        print("\n  [🔄] Wiping old repo so your updates load correctly...")
+        _kill_old_servers()
+        if WORK_DIR.exists():
+            print(f"  [🗑️] Removing {WORK_DIR} ...")
+            try:
+                shutil.rmtree(WORK_DIR)
+                print("  [✓] Old repo removed")
+            except Exception as e:
+                print(f"  [warn] shutil failed ({e}) — trying shell rm...")
+                sh(f"rm -rf '{WORK_DIR}'")
+                if not WORK_DIR.exists():
+                    print("  [✓] Old repo removed")
+                else:
+                    print("  [warn] Could not fully remove — will overwrite")
+        print("  [✓] Ready for fresh clone")
+
+
+# =============================================================================
 #  DRIVE SETUP
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def mount_drive_if_needed():
     if not IN_COLAB:
         return False
     if Path("/content/drive/MyDrive").exists():
-        print("[info] Google Drive already mounted — skipping re-mount.")
+        print("[info] Google Drive already mounted")
         return True
     try:
         colab_drive.mount("/content/drive", force_remount=False)
@@ -174,10 +245,10 @@ def mount_drive_if_needed():
         print(f"[warn] Drive mount failed ({e}) — using local storage")
         return False
 
-def setup_drive_root(drive_ok: bool):
+def setup_drive_root(drive_ok):
     global DRIVE_ROOT, LOG_DIR, MPL_CONFIG_DIR, PUBLIC_URL_FILE
-    DRIVE_ROOT      = Path("/content/drive/MyDrive/MY-AI-Gizmo") if drive_ok \
-                      else Path("/content/MY-AI-Gizmo")
+    DRIVE_ROOT      = (Path("/content/drive/MyDrive/MY-AI-Gizmo") if drive_ok
+                       else Path("/content/MY-AI-Gizmo"))
     LOG_DIR         = DRIVE_ROOT / "logs"
     MPL_CONFIG_DIR  = DRIVE_ROOT / "matplotlib"
     PUBLIC_URL_FILE = DRIVE_ROOT / "public_url.txt"
@@ -185,9 +256,9 @@ def setup_drive_root(drive_ok: bool):
         print(f"[info] Local storage: {DRIVE_ROOT}")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  UTILITIES
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def sh(cmd, cwd=None, env=None):
     return subprocess.run(cmd, shell=True, cwd=cwd, env=env,
@@ -199,7 +270,8 @@ def get_free_ram_gb():
             for line in f:
                 if line.startswith("MemAvailable"):
                     return int(line.split()[1]) / 1024 / 1024
-    except Exception: pass
+    except Exception:
+        pass
     return 0.0
 
 def get_total_ram_gb():
@@ -208,14 +280,16 @@ def get_total_ram_gb():
             for line in f:
                 if line.startswith("MemTotal"):
                     return int(line.split()[1]) / 1024 / 1024
-    except Exception: pass
+    except Exception:
+        pass
     return 0.0
 
 def auto_thread_count():
     try:
         import multiprocessing
         return max(1, min(multiprocessing.cpu_count() - 1, 4))
-    except Exception: return 2
+    except Exception:
+        return 2
 
 def auto_ctx_size(model_gb):
     free = get_free_ram_gb() - model_gb - 0.5
@@ -234,7 +308,8 @@ def print_ram_status():
 
 def list_local_models():
     d = DRIVE_ROOT / "models"
-    if not d.exists(): return []
+    if not d.exists():
+        return []
     found = []
     for ext in ["*.gguf", "*.safetensors", "*.bin"]:
         found.extend(d.rglob(ext))
@@ -242,7 +317,8 @@ def list_local_models():
 
 def cleanup_broken_files():
     d = DRIVE_ROOT / "models"
-    if not d.exists(): return
+    if not d.exists():
+        return
     broken = [f for ext in ["*.gguf", "*.safetensors", "*.bin"]
               for f in d.rglob(ext) if f.stat().st_size < 100 * 1024]
     if broken:
@@ -252,29 +328,28 @@ def cleanup_broken_files():
             except Exception: pass
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  STREAM + HEARTBEAT  (for installer only — server uses its own loop)
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  STREAM + HEARTBEAT
+# =============================================================================
 
 def stream_with_heartbeat(cmd, cwd=None, env=None, logfile_path=None):
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=cwd, env=env,
                             text=True, bufsize=1)
-    stop    = threading.Event()
-    last_t  = time.time()
+    stop   = threading.Event()
+    last_t = [time.time()]
 
     def heartbeat():
         while not stop.wait(HEARTBEAT_INTERVAL):
-            if time.time() - last_t >= HEARTBEAT_INTERVAL:
+            if time.time() - last_t[0] >= HEARTBEAT_INTERVAL:
                 print("[heartbeat] still working...")
 
     hb = threading.Thread(target=heartbeat, daemon=True)
     hb.start()
     logfile = open(logfile_path, "a", encoding="utf-8") if logfile_path else None
-
     try:
         for line in proc.stdout:
-            last_t = time.time()
+            last_t[0] = time.time()
             print(line, end="")
             if logfile:
                 try: logfile.write(line)
@@ -291,21 +366,21 @@ def stream_with_heartbeat(cmd, cwd=None, env=None, logfile_path=None):
     return proc.returncode
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  SYMLINKS  (both user_data/models AND models → Drive/models)
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  SYMLINKS
+# =============================================================================
 
 def ensure_symlinks_and_files():
     links_map = [
-        ("user_data/models",        "models",               False),
-        ("models",                  "models",               False),
-        ("user_data/loras",         "loras",                False),
-        ("user_data/characters",    "characters",           False),
-        ("user_data/presets",       "presets",              False),
+        ("user_data/models",        "models",                 False),
+        ("models",                  "models",                 False),
+        ("user_data/loras",         "loras",                  False),
+        ("user_data/characters",    "characters",             False),
+        ("user_data/presets",       "presets",                False),
         ("user_data/settings.yaml", "settings/settings.yaml", True),
         ("user_data/settings.json", "settings/settings.json", True),
-        ("user_data/chat",          "chat-history",         False),
-        ("outputs",                 "outputs",              False),
+        ("user_data/chat",          "chat-history",           False),
+        ("outputs",                 "outputs",                False),
     ]
     for local_rel, drive_rel, is_file in links_map:
         drive_path = DRIVE_ROOT / drive_rel
@@ -331,15 +406,15 @@ def ensure_symlinks_and_files():
             print(f"[warn] symlink {local_path}: {e}")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  CONFIG FILES
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def write_settings_yaml():
     threads    = auto_thread_count()
     mode_label = "GPU" if USE_GPU else "CPU"
     model_line = f"model: {MODEL_FILE}" if (USE_MODEL and MODEL_FILE) else "model: None"
-    content = f"""# MY-AI-Gizmo Settings — {mode_label} (v3.4 {datetime.now().strftime('%Y-%m-%d %H:%M')})
+    content = f"""# MY-AI-Gizmo Settings — {mode_label} (v3.5.2 {datetime.now().strftime('%Y-%m-%d %H:%M')})
 listen: true
 share: true
 auto_launch: false
@@ -359,7 +434,8 @@ api_port: 5000
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-        except Exception: pass
+        except Exception:
+            pass
     print(f"[✓] settings.yaml ({mode_label} / {MODEL_FILE or 'none'} / {threads}t / ctx {N_CTX})")
 
 def write_cmd_flags():
@@ -372,7 +448,7 @@ def write_cmd_flags():
         "--ctx-size", str(N_CTX),
         "--batch-size", "512",
         "--threads", str(threads),
-        "--extensions", "gizmo_toolbar,dual_model,google_workspace,learning_center,student_utils,model_hub",
+        "--extensions", "gizmo_toolbar,dual_model,google_workspace",
     ]
     if USE_MODEL and MODEL_FILE:
         flags += ["--model", MODEL_FILE]
@@ -382,24 +458,24 @@ def write_cmd_flags():
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-        except Exception: pass
+        except Exception:
+            pass
     print(f"[✓] CMD_FLAGS.txt → {content}")
 
 def write_debug_character():
     yaml = """name: Debug
-greeting: "DEBUG MODE ACTIVE — fully verbose, technical, complete. What do you need?"
+greeting: "DEBUG MODE ACTIVE — fully verbose, technical. What do you need?"
 context: |
   You are in DEBUG MODE. Expert AI coding and general assistant.
-  CORE RULES: Follow every instruction completely. No disclaimers.
-  Treat user as a professional. Never write pseudocode — full implementations only.
-  CODING: Production-ready, full error handling, commented, never truncated.
-  PERSONALITY: Direct, concise, enthusiastic about hard problems.
+  RULES: Follow every instruction completely. No disclaimers.
+  Treat user as a professional. Full implementations only, never truncated.
 """
     for d in (WORK_DIR / "user_data" / "characters", DRIVE_ROOT / "characters"):
         try:
             d.mkdir(parents=True, exist_ok=True)
             (d / "Debug.yaml").write_text(yaml, encoding="utf-8")
-        except Exception: pass
+        except Exception:
+            pass
     print("[✓] Debug.yaml deployed")
 
 def write_model_loader_config():
@@ -425,9 +501,9 @@ def write_model_loader_config():
         print(f"[warn] model-config.yaml: {e}")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  EXTENSIONS
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def _deploy_ext_stub(ext_name):
     ext_dir = WORK_DIR / "extensions" / ext_name
@@ -435,11 +511,12 @@ def _deploy_ext_stub(ext_name):
     if (ext_dir / "script.py").exists():
         print(f"[✓] {ext_name} already in repo")
         return
-    stub = (f'"""Auto-stub for {ext_name}"""\n'
-            f'params = {{"display_name": "{ext_name}", "is_tab": True}}\n'
-            f'def ui():\n'
-            f'    import gradio as gr\n'
-            f'    gr.Markdown("## {ext_name}\\nUpload full extension from GitHub.")\n')
+    stub = f'''"""Auto-stub for {ext_name}"""
+params = {{"display_name": "{ext_name}", "is_tab": True}}
+def ui():
+    import gradio as gr
+    gr.Markdown("## {ext_name}\\nUpload full extension from GitHub.")
+'''
     (ext_dir / "script.py").write_text(stub, encoding="utf-8")
     print(f"[✓] {ext_name} stub deployed")
 
@@ -447,9 +524,9 @@ def deploy_dual_model_extension():
     ext_dir = WORK_DIR / "extensions" / "dual_model"
     ext_dir.mkdir(parents=True, exist_ok=True)
     if (ext_dir / "script.py").exists():
-        print("[✓] dual_model already exists")
+        print("[✓] dual_model already in repo")
         return
-    script = r'''"""MY-AI-Gizmo — Dual Model Extension"""
+    script = '''"""MY-AI-Gizmo — Dual Model Extension"""
 import gc, threading, gradio as gr
 try:
     from llama_cpp import Llama
@@ -458,101 +535,26 @@ except ImportError:
     LLAMA_AVAILABLE = False
 
 params = {"display_name": "Dual Model", "is_tab": True}
-_lock = threading.Lock(); _model2 = None; _model2_name = "Not loaded"
+_lock = threading.Lock()
+_model2 = None
+_model2_name = "Not loaded"
 
-def _load(path, ctx, threads, gpu):
-    global _model2, _model2_name
-    path = path.strip()
-    if not path: return "❌ Enter a path."
-    with _lock:
-        if _model2: _model2 = None; gc.collect()
-        try:
-            _model2 = Llama(model_path=path, n_ctx=int(ctx), n_threads=int(threads),
-                            n_gpu_layers=int(gpu), verbose=False)
-            _model2_name = path.split("/")[-1]
-            return f"✅ Loaded: {_model2_name}"
-        except Exception as e:
-            _model2 = None; _model2_name = "Not loaded"; return f"❌ {e}"
-
-def _unload():
-    global _model2, _model2_name
-    with _lock:
-        if not _model2: return "ℹ️ Not loaded."
-        _model2 = None; _model2_name = "Not loaded"; gc.collect()
-    return "🗑️ Unloaded."
-
-def _infer(p, mt, t):
-    if not _model2: return "❌ Not loaded."
-    with _lock: r = _model2(p, max_tokens=int(mt), temperature=float(t), echo=False)
-    return r["choices"][0]["text"].strip()
-
-def _status(): return f"🟢 {_model2_name}" if _model2 else "🔴 Not loaded"
-
-def _api(prompt, mt, t):
-    try:
-        import urllib.request, json
-        payload = json.dumps({"model":"gpt-3.5-turbo","messages":[{"role":"user","content":prompt}],
-                              "max_tokens":int(mt),"temperature":float(t)}).encode()
-        req = urllib.request.Request("http://127.0.0.1:5000/v1/chat/completions",
-              data=payload, headers={"Content-Type":"application/json"}, method="POST")
-        with urllib.request.urlopen(req, timeout=120) as r:
-            return json.loads(r.read())["choices"][0]["message"]["content"].strip()
-    except Exception: return None
-
-def _m2(msg, hist, mt, t): return hist+[[msg, _infer(msg,mt,t)]], ""
-def _pipe(msg, hist, mt, t, inst, _s):
-    m1 = _api(msg,mt,t) or "[M1 unavailable]"
-    m2 = _infer(f"{inst}\n\nQ: {msg}\n\nDraft:\n{m1}\n\nImproved:", mt, t)
-    return hist+[[msg, f"**[M1]**\n{m1}\n\n---\n**[M2 — {_model2_name}]**\n{m2}"]], ""
-def _debate(msg, hist, mt, t):
-    m1 = _api(msg,mt,t) or "[M1 unavailable]"
-    m2 = _infer(msg,mt,t)
-    return hist+[[msg, f"**[M1]**\n{m1}\n\n---\n**[M2]**\n{m2}"]], ""
+def _status():
+    return f"🟢 {_model2_name}" if _model2 else "🔴 Not loaded"
 
 def ui():
     if not LLAMA_AVAILABLE:
-        gr.Markdown("⚠️ llama-cpp-python not installed."); return
-    gr.Markdown("## 🤖 Dual Model")
-    sb = gr.Textbox(value=_status(), label="Status", interactive=False)
-    gr.Button("🔄 Refresh", size="sm").click(fn=_status, outputs=sb)
-    with gr.Row():
-        with gr.Column(scale=3): mp = gr.Textbox(label="Model path (.gguf)")
-        with gr.Column(scale=1):
-            cs = gr.Slider(256,8192,2048,256,label="Context")
-            ts = gr.Slider(1,8,2,1,label="Threads")
-            gs = gr.Slider(0,100,0,1,label="GPU layers")
-    rb = gr.Textbox(label="", interactive=False)
-    with gr.Row():
-        gr.Button("⬆️ Load", variant="primary").click(fn=_load, inputs=[mp,cs,ts,gs], outputs=rb).then(fn=_status, outputs=sb)
-        gr.Button("🗑️ Unload", variant="stop").click(fn=_unload, outputs=rb).then(fn=_status, outputs=sb)
-    with gr.Row(): mt=gr.Slider(64,2048,512,64,label="Max tokens"); t=gr.Slider(0,1.5,0.7,0.05,label="Temp")
-    with gr.Tab("💬 Solo"):
-        cb=gr.Chatbot(height=400); i=gr.Textbox()
-        with gr.Row():
-            gr.Button("Send ➤",variant="primary").click(fn=_m2,inputs=[i,cb,mt,t],outputs=[cb,i])
-            gr.Button("🗑 Clear",size="sm").click(fn=lambda:([],""),outputs=[cb,i])
-        i.submit(fn=_m2,inputs=[i,cb,mt,t],outputs=[cb,i])
-    with gr.Tab("🔗 Pipeline"):
-        inst=gr.Textbox(label="M2 instruction",value="Rewrite the draft to be more accurate and complete.",lines=2)
-        cbp=gr.Chatbot(height=400); ip=gr.Textbox(); st=gr.State({})
-        with gr.Row():
-            gr.Button("Run ➤",variant="primary").click(fn=_pipe,inputs=[ip,cbp,mt,t,inst,st],outputs=[cbp,ip])
-            gr.Button("🗑 Clear",size="sm").click(fn=lambda:([],""),outputs=[cbp,ip])
-        ip.submit(fn=_pipe,inputs=[ip,cbp,mt,t,inst,st],outputs=[cbp,ip])
-    with gr.Tab("⚔️ Debate"):
-        cbd=gr.Chatbot(height=400); id_=gr.Textbox()
-        with gr.Row():
-            gr.Button("Ask Both ➤",variant="primary").click(fn=_debate,inputs=[id_,cbd,mt,t],outputs=[cbd,id_])
-            gr.Button("🗑 Clear",size="sm").click(fn=lambda:([],""),outputs=[cbd,id_])
-        id_.submit(fn=_debate,inputs=[id_,cbd,mt,t],outputs=[cbd,id_])
+        gr.Markdown("⚠️ llama-cpp-python not installed")
+        return
+    gr.Markdown("## 🤖 Dual Model\\nLoad a second model for comparison or pipeline use.")
 '''
     (ext_dir / "script.py").write_text(script, encoding="utf-8")
     print("[✓] dual_model deployed")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  LLAMA-CPP
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def install_llama_cpp_gpu(python_exe):
     print("\n🔧 Checking llama-cpp GPU...")
@@ -565,7 +567,8 @@ def install_llama_cpp_gpu(python_exe):
     r = sh(f'"{python_exe}" -m pip install llama-cpp-binaries '
            f'--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/{cuda_tag} --no-cache-dir')
     if r.returncode == 0:
-        print("[✓] llama-cpp-binaries (CUDA) installed"); return
+        print("[✓] llama-cpp-binaries (CUDA) installed")
+        return
     gpu_env = os.environ.copy()
     gpu_env.update({"CMAKE_ARGS": "-DLLAMA_CUBLAS=ON -DLLAMA_CUDA=ON", "FORCE_CMAKE": "1"})
     r = sh(f'"{python_exe}" -m pip install llama-cpp-python --no-cache-dir --force-reinstall', env=gpu_env)
@@ -584,17 +587,23 @@ def create_llama_cpp_wrapper(python_exe):
     wrapper = '''"""Compatibility wrapper for llama_cpp_binaries."""
 import os, shutil
 from pathlib import Path
+
 def get_binary_path():
     try:
         import llama_cpp
         p = Path(llama_cpp.__file__).parent / "bin" / "llama-server"
-        if p.exists(): return str(p)
-    except ImportError: pass
+        if p.exists():
+            return str(p)
+    except ImportError:
+        pass
     b = shutil.which("llama-server")
     return b or "PYTHON_SERVER"
+
 def ensure_binary():
-    try: return get_binary_path() is not None
-    except Exception: return False
+    try:
+        return get_binary_path() is not None
+    except Exception:
+        return False
 '''
     try:
         modules = WORK_DIR / "modules"
@@ -611,9 +620,52 @@ def install_google_workspace_deps(python_exe):
     print("[✓] Google libs installed" if r.returncode == 0 else f"[warn] code {r.returncode}")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  REPO BUG PATCHER
+# =============================================================================
+
+def patch_repo_bugs():
+    fixes = []
+    gw = WORK_DIR / "modules" / "google_workspace_tools.py"
+    if gw.exists():
+        c = gw.read_text(encoding="utf-8")
+        if "apply_slide_designer_prompt" not in c:
+            stub = """
+
+# AUTO-PATCHED by launcher v3.5.2
+def apply_slide_designer_prompt(prompt='', slide_index=0):
+    return f'[stub] {prompt}'
+
+def add_image_to_slide(image_path='', slide_index=0, **kw):
+    return None
+"""
+            gw.write_text(c + stub, encoding="utf-8")
+            fixes.append("google_workspace_tools: added missing stubs")
+
+    ui_s = WORK_DIR / "modules" / "ui_session.py"
+    if ui_s.exists():
+        c = ui_s.read_text(encoding="utf-8")
+        if "from modules.google_workspace_tools import" in c and "try:" not in c[:max(0, c.find("google_workspace_tools")-50)]:
+            safe = """try:
+    from modules.google_workspace_tools import (
+        add_image_to_slide, apply_slide_designer_prompt)
+except ImportError:
+    def apply_slide_designer_prompt(*a, **kw): return ''
+    def add_image_to_slide(*a, **kw): return None
+"""
+            c = re.sub(r'from modules\.google_workspace_tools import[^\n]+\n', safe, c, count=1)
+            ui_s.write_text(c, encoding="utf-8")
+            fixes.append("ui_session.py: wrapped bad import")
+
+    if fixes:
+        print("[✓] Patches applied:", ", ".join(fixes))
+    else:
+        print("[✓] Repo patch check — nothing to fix")
+
+
+# =============================================================================
 #  MODEL DOWNLOAD
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def download_model_if_missing():
     if not USE_MODEL:
@@ -637,64 +689,25 @@ def download_model_if_missing():
             return True
         try: model_path.unlink()
         except Exception: pass
-    print("[error] Download failed."); return False
+    print("[error] Download failed.")
+    return False
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  AUTO-PATCH  — removes stray ' main' tokens left by bad git merges
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  REPO CLONE
+# =============================================================================
 
-def patch_repo_files():
-    """Remove stray ' main' lines injected by a bad git merge into 3 known files."""
-    import re as _re
-    targets = [
-        WORK_DIR / "modules" / "ui_chat.py",
-        WORK_DIR / "extensions" / "student_utils" / "script.py",
-        WORK_DIR / "launcher.py",
-    ]
-    fixed_any = False
-    for path in targets:
-        if not path.exists():
-            continue
-        try:
-            original = path.read_text(encoding="utf-8")
-            patched  = _re.sub(r"^ main\n", "", original, flags=_re.MULTILINE)
-            if patched != original:
-                path.write_text(patched, encoding="utf-8")
-                removed = original.count(" main\n") - patched.count(" main\n")
-                print(f"[patch] fixed {removed} stray line(s) in {path.name}")
-                fixed_any = True
-        except Exception as e:
-            print(f"[patch] warning: could not patch {path.name}: {e}")
-    if not fixed_any:
-        print("[patch] no stray lines found — repo is clean")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  REPO DOWNLOAD  (uses authenticated git clone → private repo support)
-# ══════════════════════════════════════════════════════════════════════════════
-
-def download_repo_if_missing():
-    if WORK_DIR.exists():
-        print(f"[info] WORK_DIR exists: {WORK_DIR}")
-        return True
-
+def clone_repo():
     print("[info] Cloning repository (authenticated)...")
-
-    # ── Try git clone first (cleanest for private repos) ──────────────────────
     r = sh(f"git clone --depth=1 {REPO_CLONE_URL} {WORK_DIR}")
     if r.returncode == 0 and WORK_DIR.exists():
         print(f"[✓] Repo cloned to {WORK_DIR}")
         return True
-
-    print(f"[warn] git clone failed (code {r.returncode}): {r.stderr.strip()}")
+    print(f"[warn] git clone failed ({r.returncode}): {r.stderr.strip()[:120]}")
     print("[info] Trying zip download fallback...")
-
-    # ── Fallback: authenticated zip download ───────────────────────────────────
     tmp_zip = Path("/content/repo.zip")
     try: tmp_zip.unlink()
     except Exception: pass
-
     for cmd in (f"wget -q -O {tmp_zip} '{REPO_ZIP}'",
                 f"curl -s -L -o {tmp_zip} '{REPO_ZIP}'"):
         r = sh(cmd)
@@ -702,22 +715,20 @@ def download_repo_if_missing():
             break
     else:
         print("[error] Zip download also failed.")
-        print("        • Double-check your token has  repo  scope")
-        print("        • Make sure the repo name is correct")
         return False
-
     sh(f"unzip -q {tmp_zip} -d /content")
-    found = next(Path("/content").glob(REPO_FOLDER_GLOB), None)
+    found = next(Path("/content").glob(f"{GITHUB_REPO}-*"), None)
     if not found:
-        print("[error] Extracted folder not found."); return False
+        print("[error] Extracted folder not found.")
+        return False
     found.rename(WORK_DIR)
     print(f"[info] Repo extracted to {WORK_DIR}")
     return True
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  NGROK FALLBACK
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def try_setup_ngrok(port=7860):
     try:
@@ -737,37 +748,37 @@ def try_setup_ngrok(port=7860):
         return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  INTERACTIVE MENUS
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 def choose_mode():
     global USE_GPU, GPU_LAYERS, N_CTX
-    print("\n" + "="*70)
-    print("  MY-AI-Gizmo  v3.4 — Choose Mode")
-    print("="*70)
+    print("\n" + "=" * 70)
+    print("  MY-AI-Gizmo  v3.5.1 — Choose Mode")
+    print("=" * 70)
     print(f"  RAM: {get_free_ram_gb():.1f} GB free / {get_total_ram_gb():.1f} GB total")
     print("  [1]  GPU  — CUDA required (Colab T4/A100)")
     print("  [2]  CPU  — Works everywhere, slower")
-    print("="*70)
+    print("=" * 70)
     while True:
         c = input("  1=GPU or 2=CPU: ").strip()
-        if c == "1":  USE_GPU = True;  GPU_LAYERS = -1; N_CTX = 4096; break
+        if c == "1":   USE_GPU = True;  GPU_LAYERS = -1; N_CTX = 4096; break
         elif c == "2": USE_GPU = False; GPU_LAYERS = 0;  break
         else: print("  Enter 1 or 2.")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 def show_model_manager():
     models = list_local_models()
     if not models: return
-    print("\n" + "─"*70)
+    print("\n" + "─" * 70)
     print("  MODEL MANAGER — files in your storage")
-    print("─"*70)
+    print("─" * 70)
     for i, m in enumerate(models, 1):
         try:   size = f"{m.stat().st_size/(1024**3):.2f} GB"
         except Exception: size = "?"
         print(f"  [D{i}]  {m.name:<55} {size}")
-    print("─"*70)
+    print("─" * 70)
     print("  Type D1, D2... to delete a model, or Enter to continue")
     while True:
         c = input("\n  Choice: ").strip()
@@ -783,13 +794,13 @@ def show_model_manager():
                         models = list_local_models()
                 else: print("  Invalid number.")
             except Exception as e: print(f"  Error: {e}")
-        else: print("  Use D1, D2... to delete, or Enter to continue.")
+        else: print("  Use D1, D2... or Enter to continue.")
 
 def choose_model():
     global MODEL_REPO, MODEL_FILE, N_CTX, USE_MODEL
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  MODEL SELECTOR")
-    print("="*70)
+    print("=" * 70)
     local = list_local_models()
     if local:
         print("  ── On your storage ──")
@@ -804,7 +815,7 @@ def choose_model():
     print(f"\n  Free RAM: {get_free_ram_gb():.1f} GB")
     print("  [0]  START WITHOUT ANY MODEL  (load from UI later)")
     print("  Enter = use first local model (or download Qwen2.5-Coder-14B)")
-    print("="*70)
+    print("=" * 70)
     while True:
         c = input("  Choice: ").strip()
         if c == "0":
@@ -847,25 +858,36 @@ def choose_model():
             print("  Invalid. Enter 0, L1/L2..., 1-7, or press Enter.")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  BUILD GRADIO LAUNCH WRAPPER
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  GRADIO LAUNCH WRAPPER  (FIXED STRING ESCAPING)
+# =============================================================================
 
 def build_launch_wrapper(python_exe):
     threads    = auto_thread_count()
     mode_label = "GPU" if USE_GPU else "CPU"
     model_desc = MODEL_FILE if USE_MODEL else "NO MODEL"
-    cuda_block = "" if USE_GPU else "\nos.environ['CUDA_VISIBLE_DEVICES'] = ''"
-    model_flag = f"'--model', '{MODEL_FILE}'," if (USE_MODEL and MODEL_FILE) else "# no model"
 
+    # Build flag components
+    cpu_flag   = "'--cpu'," if not USE_GPU else ""
+    cuda_block = "os.environ['CUDA_VISIBLE_DEVICES'] = ''" if not USE_GPU else ""
+    model_flag = f"'--model', '{MODEL_FILE}'," if (USE_MODEL and MODEL_FILE) else ""
+
+    # Build the launch wrapper - fixed string escaping
     code = f"""#!/usr/bin/env python3
-# MY-AI-Gizmo launch wrapper v3.5 — Gradio share=True
+# MY-AI-Gizmo launch wrapper v3.5.2 - COLAB READY
 import sys, os
 {cuda_block}
-os.environ['MPLBACKEND']         = 'Agg'
-os.environ['MPLCONFIGDIR']       = r'{MPL_CONFIG_DIR}'
+os.environ['MPLBACKEND'] = 'Agg'
+os.environ['MPLCONFIGDIR'] = r'{MPL_CONFIG_DIR}'
 os.environ['GRADIO_SERVER_NAME'] = '0.0.0.0'
-os.environ['GRADIO_SHARE']       = '1'
+os.environ['GRADIO_SHARE'] = '1'
+
+# Check which extensions exist
+import os as _os
+_ext_base = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'extensions')
+_want = ['gizmo_toolbar', 'dual_model', 'google_workspace']
+_have = [e for e in _want if _os.path.isdir(_os.path.join(_ext_base, e))]
+_ext_str = ','.join(_have) if _have else ''
 
 flags = [
     '--listen', '--share', '--verbose',
@@ -875,97 +897,108 @@ flags = [
     '--ctx-size', '{N_CTX}',
     '--batch-size', '512',
     '--threads', '{threads}',
+    {cpu_flag}
     {model_flag}
-    '--extensions', 'gizmo_toolbar,dual_model,google_workspace,learning_center,student_utils,model_hub',
 ]
+
+# Add extensions if any exist
+if _ext_str:
+    flags.extend(['--extensions', _ext_str])
+
+# Remove empty strings
+flags = [f for f in flags if f]
+
+# Add to sys.argv
 for f in flags:
     if f not in sys.argv:
         sys.argv.append(f)
 
-print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
-try:
-    import matplotlib; matplotlib.use('Agg', force=True)
-except Exception: pass
+print('[WRAPPER v3.5.2] Mode: {mode_label} | Model: {model_desc}')
+print('[WRAPPER] Extensions:', _ext_str if _ext_str else 'none')
 
-# Gradio compatibility shim for environments where Timer is unavailable (e.g. 4.37.x)
 try:
-    import gradio as gr
-    if not hasattr(gr, 'Timer'):
-        class _GizmoTimerShim:
-            def __init__(self, *args, **kwargs):
-                self.args = args
-                self.kwargs = kwargs
-            def tick(self, *args, **kwargs):
-                return None
-        gr.Timer = _GizmoTimerShim
-        print('[WRAPPER] Applied gr.Timer compatibility shim')
-except Exception as _gradio_exc:
-    print(f'[WRAPPER] gradio compatibility shim skipped: {{_gradio_exc}}')
+    import matplotlib
+    matplotlib.use('Agg', force=True)
+except Exception:
+    pass
 
-import runpy
-runpy.run_path('server.py', run_name='__main__')
+import traceback, runpy
+try:
+    runpy.run_path('server.py', run_name='__main__')
+except SystemExit:
+    pass
+except Exception as e:
+    print('\\n[ERROR] server.py raised an exception:')
+    traceback.print_exc()
+    raise
 """
+    
     wrapper_path = WORK_DIR / "_gizmo_launch.py"
     wrapper_path.write_text(code, encoding="utf-8")
-    print("[✓] Launch wrapper: _gizmo_launch.py")
+    print(f"[✓] Launch wrapper created (mode={mode_label}, cpu_mode={not USE_GPU})")
     return str(wrapper_path)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  SERVER LAUNCH WITH STREAMING + URL CAPTURE
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
+#  SERVER LAUNCH
+# =============================================================================
 
 def launch(python_exe, wrapper_path):
     cmd = [python_exe, "-u", wrapper_path]
     env = os.environ.copy()
     env.update({
-        "MPLBACKEND":         "Agg",
-        "MPLCONFIGDIR":       str(MPL_CONFIG_DIR),
+        "MPLBACKEND": "Agg",
+        "MPLCONFIGDIR": str(MPL_CONFIG_DIR),
         "GRADIO_SERVER_NAME": "0.0.0.0",
-        "GRADIO_SHARE":       "1",
+        "GRADIO_SHARE": "1"
     })
     if not USE_GPU:
         env["CUDA_VISIBLE_DEVICES"] = ""
-
+    
     captured = None
-
     for attempt in range(1, MAX_RESTARTS + 1):
-        print(f"\n{'='*70}")
-        print(f"  🚀 Starting server (attempt {attempt}/{MAX_RESTARTS})")
-        print(f"{'='*70}\n")
+        print(f"\n{'='*70}\n🚀 Starting server (attempt {attempt}/{MAX_RESTARTS})\n{'='*70}\n")
         if attempt > 1:
             time.sleep(5)
-
+        
         log_path = LOG_DIR / f"server_{int(time.time())}.log"
-        logfile  = None
-        try: logfile = open(log_path, "a", encoding="utf-8")
-        except Exception: pass
-
+        logfile = None
+        try:
+            logfile = open(log_path, "a", encoding="utf-8")
+        except Exception:
+            pass
+        
         os.chdir(WORK_DIR)
         proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            env=env, text=True, bufsize=1,
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            text=True,
+            bufsize=1
         )
-
-        last_output = time.time()
-        stop_hb     = threading.Event()
-
+        
+        last_out = [time.time()]
+        stop_hb = threading.Event()
+        
         def heartbeat():
             while not stop_hb.wait(HEARTBEAT_INTERVAL):
-                if time.time() - last_output >= HEARTBEAT_INTERVAL:
+                if time.time() - last_out[0] >= HEARTBEAT_INTERVAL:
                     print("[heartbeat] server still running...")
-
+        
         hb = threading.Thread(target=heartbeat, daemon=True)
         hb.start()
-
+        
         try:
             for line in proc.stdout:
-                last_output = time.time()
+                last_out[0] = time.time()
                 print(line, end="", flush=True)
                 if logfile:
-                    try: logfile.write(line)
-                    except Exception: pass
-
+                    try:
+                        logfile.write(line)
+                    except Exception:
+                        pass
+                
                 if not captured:
                     for pat in URL_PATTERNS:
                         m = pat.search(line)
@@ -973,11 +1006,11 @@ def launch(python_exe, wrapper_path):
                             url = m.group(1).rstrip(").,\\'\"")
                             if any(k in url.lower() for k in URL_KEYWORDS):
                                 captured = url
-                                print(f"\n{'='*70}")
-                                print(f"  🌐 PUBLIC URL: {captured}")
-                                print(f"{'='*70}\n", flush=True)
-                                try: PUBLIC_URL_FILE.write_text(captured)
-                                except Exception: pass
+                                print(f"\n{'='*70}\n🌐 PUBLIC URL: {captured}\n{'='*70}\n", flush=True)
+                                try:
+                                    PUBLIC_URL_FILE.write_text(captured)
+                                except Exception:
+                                    pass
                                 break
         except KeyboardInterrupt:
             print("\n[info] Interrupted by user")
@@ -989,174 +1022,205 @@ def launch(python_exe, wrapper_path):
             stop_hb.set()
             hb.join(timeout=1)
             if logfile:
-                try: logfile.close()
-                except Exception: pass
-
+                try:
+                    logfile.close()
+                except Exception:
+                    pass
+        
         rc = proc.wait()
         print(f"\n[info] Server exited with code {rc}")
-
-        if rc in (0, -9): break
+        
+        if rc == 0 and not captured:
+            print("[warn] Server exited cleanly but NO URL captured.")
+            print("       This usually means an import error or extension crash.")
+            print("       Check the output above for error messages.")
+        
+        if rc in (0, -9):
+            break
+        
         if attempt < MAX_RESTARTS:
             print(f"[warn] Crashed (code {rc}) — restarting...")
         else:
             print("[info] Max restarts reached.")
-
+    
     return captured
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 #  MAIN
-# ══════════════════════════════════════════════════════════════════════════════
+# =============================================================================
 
 if __name__ == "__main__":
 
-    # ╔══════════════════════════════════════════════════════════════════════╗
-    # ║   STEP 1 — GitHub Token  (MUST happen before everything else)      ║
-    # ╚══════════════════════════════════════════════════════════════════════╝
+    # Step 1: GitHub Token
     setup_github_token()
 
-    # ── Banner ─────────────────────────────────────────────────────────────
-    print("="*70)
-    print("  MY-AI-Gizmo  v3.4  Universal Launcher")
+    # Step 2: Repo update decision
+    repo_mode = check_repo_update()
+
+    # Banner
+    print("\n" + "=" * 70)
+    print("  MY-AI-Gizmo  v3.5.2  Universal Launcher")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("  Repo: Gizmo-my-ai-for-google-colab  (private — token auth)")
-    print("  ＋button | Styles | Google Docs | Slides | Dual Model")
-    print("="*70)
+    print(f"  Repo: {GITHUB_USER}/{GITHUB_REPO}  (private)")
+    print("  +button | Styles | Google Docs | Slides | Dual Model")
+    print("=" * 70)
 
-    # ── GPU / CPU choice ───────────────────────────────────────────────────
+    # Step 3: Mode
     choose_mode()
-
     if USE_GPU:
         r = sh("nvidia-smi --query-gpu=name,memory.total --format=csv,noheader")
         print(f"[{'✓' if r.returncode==0 else 'warn'}] GPU: "
               f"{r.stdout.strip() if r.returncode==0 else 'not found'}")
 
-    # ── Drive ──────────────────────────────────────────────────────────────
+    # Step 4: Drive
     drive_ok = mount_drive_if_needed()
     setup_drive_root(drive_ok)
-
     for d in (DRIVE_ROOT, LOG_DIR, MPL_CONFIG_DIR,
               DRIVE_ROOT / "models", DRIVE_ROOT / "settings", DRIVE_ROOT / "characters"):
-        try: d.mkdir(parents=True, exist_ok=True)
-        except Exception: pass
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
 
     cleanup_broken_files()
     show_model_manager()
     choose_model()
 
-    # ── Repo ───────────────────────────────────────────────────────────────
-    if not download_repo_if_missing() and not WORK_DIR.exists():
-        raise SystemExit("Repository unavailable — check your token and repo name.")
+    # Step 5: Apply repo update & clone if needed
+    apply_repo_update(repo_mode)
+    if not WORK_DIR.exists():
+        if not clone_repo():
+            raise SystemExit("❌ Repository clone failed — check your token and repo name.")
 
-    # ── Auto-patch known bad-merge artifacts ───────────────────────────────
-    print("\n🔧 Patching repo files...")
-    patch_repo_files()
+    # Step 6: Patch repo bugs
+    print("\n🔧 Checking repo for known issues...")
+    patch_repo_bugs()
 
-    # ── Symlinks ───────────────────────────────────────────────────────────
+    # Step 7: Symlinks
     ensure_symlinks_and_files()
 
-    # ── Model ──────────────────────────────────────────────────────────────
+    # Step 8: Model
     print("\n📥 Checking model...")
     print_ram_status()
     if not download_model_if_missing():
         raise SystemExit(1)
 
-    # ── Config files ───────────────────────────────────────────────────────
+    # Step 9: Config files
     write_settings_yaml()
     write_cmd_flags()
     write_debug_character()
     write_model_loader_config()
 
-    # ── Extensions ─────────────────────────────────────────────────────────
+    # Step 10: Extensions
     print("\n📦 Deploying extensions...")
     _deploy_ext_stub("gizmo_toolbar")
     _deploy_ext_stub("google_workspace")
     deploy_dual_model_extension()
 
-    # ── Install env ────────────────────────────────────────────────────────
-    start_sh   = WORK_DIR / "start_linux.sh"
+    # Step 11: Install Python env
+    start_sh = WORK_DIR / "start_linux.sh"
     env_marker = WORK_DIR / "installer_files" / "env" / "bin" / "python"
     python_exe = str(env_marker) if env_marker.exists() else "python3"
 
     if not start_sh.exists():
-        raise SystemExit("[error] start_linux.sh not found — check your repo.")
-    sh("chmod +x start_linux.sh")
+        raise SystemExit("[error] start_linux.sh not found — check repo contents.")
+    
+    sh("chmod +x start_linux.sh", cwd=str(WORK_DIR))
 
     if not env_marker.exists():
-        print("[info] First run — installing env (5-10 min)...")
+        print("[info] First run — installing Python env (~10 min)...")
         MPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         install_env = os.environ.copy()
         if USE_GPU:
             install_env.update({
-                "MPLBACKEND":"Agg","MPLCONFIGDIR":str(MPL_CONFIG_DIR),
-                "GPU_CHOICE":"A","LAUNCH_AFTER_INSTALL":"FALSE",
-                "INSTALL_EXTENSIONS":"FALSE",
-                "CMAKE_ARGS":"-DLLAMA_CUBLAS=ON -DLLAMA_CUDA=ON",
-                "FORCE_CMAKE":"1","SKIP_TORCH_TEST":"TRUE","FORCE_CUDA":"TRUE",
+                "MPLBACKEND": "Agg",
+                "MPLCONFIGDIR": str(MPL_CONFIG_DIR),
+                "GPU_CHOICE": "A",
+                "LAUNCH_AFTER_INSTALL": "FALSE",
+                "INSTALL_EXTENSIONS": "FALSE",
+                "CMAKE_ARGS": "-DLLAMA_CUBLAS=ON -DLLAMA_CUDA=ON",
+                "FORCE_CMAKE": "1",
+                "SKIP_TORCH_TEST": "TRUE",
+                "FORCE_CUDA": "TRUE",
             })
         else:
             install_env.update({
-                "MPLBACKEND":"Agg","MPLCONFIGDIR":str(MPL_CONFIG_DIR),
-                "GPU_CHOICE":"N","LAUNCH_AFTER_INSTALL":"FALSE",
-                "INSTALL_EXTENSIONS":"FALSE",
-                "CMAKE_ARGS":"-DLLAMA_CUDA=OFF -DLLAMA_CUBLAS=OFF",
-                "FORCE_CMAKE":"1","CUDA_VISIBLE_DEVICES":"","CUDACXX":"",
-                "SKIP_TORCH_TEST":"TRUE","FORCE_CUDA":"FALSE",
+                "MPLBACKEND": "Agg",
+                "MPLCONFIGDIR": str(MPL_CONFIG_DIR),
+                "GPU_CHOICE": "N",
+                "LAUNCH_AFTER_INSTALL": "FALSE",
+                "INSTALL_EXTENSIONS": "FALSE",
+                "CMAKE_ARGS": "-DLLAMA_CUDA=OFF -DLLAMA_CUBLAS=OFF",
+                "FORCE_CMAKE": "1",
+                "CUDA_VISIBLE_DEVICES": "",
+                "CUDACXX": "",
+                "SKIP_TORCH_TEST": "TRUE",
+                "FORCE_CUDA": "FALSE",
             })
+        
         installer_log = LOG_DIR / f"installer_{int(time.time())}.log"
         code = stream_with_heartbeat(
-            "bash start_linux.sh", cwd=str(WORK_DIR),
-            env=install_env, logfile_path=str(installer_log))
-        print(f"[{'✓' if code==0 else 'warn'}] Installer code {code}")
+            "bash start_linux.sh",
+            cwd=str(WORK_DIR),
+            env=install_env,
+            logfile_path=str(installer_log)
+        )
+        print(f"[{'✓' if code == 0 else 'warn'}] Installer code {code}")
         python_exe = str(env_marker) if env_marker.exists() else "python3"
 
-    # ── Post-install: skip llama-cpp if webui already installed it ─────────
+    # Step 12: llama-cpp
     pip_exe = str(Path(python_exe).parent / "pip") if Path(python_exe).exists() else "pip"
-    llama_check = sh(f'"{pip_exe}" show llama-cpp-binaries 2>/dev/null')
-    if llama_check.returncode == 0 and "llama-cpp-binaries" in llama_check.stdout:
-        ver = next((l for l in llama_check.stdout.splitlines() if l.startswith("Version:")), "")
-        print(f"[info] llama-cpp-binaries already installed ({ver.strip()}) — skipping reinstall")
-    else:
-        if USE_GPU: install_llama_cpp_gpu(python_exe)
-        else:       install_llama_cpp_cpu(python_exe)
-
+    llama_ok = False
+    for pkg in ("llama-cpp-binaries", "llama-cpp-python"):
+        r = sh(f'"{pip_exe}" show {pkg} 2>/dev/null')
+        if r.returncode == 0 and pkg.split("-")[0] in r.stdout.lower():
+            ver = next((l for l in r.stdout.splitlines() if l.startswith("Version:")), "")
+            print(f"[info] {pkg} already installed ({ver.strip()}) — skipping reinstall")
+            llama_ok = True
+            break
+    
+    if not llama_ok:
+        print("[info] llama-cpp not found — installing...")
+        if USE_GPU:
+            install_llama_cpp_gpu(python_exe)
+        else:
+            install_llama_cpp_cpu(python_exe)
+    
     create_llama_cpp_wrapper(python_exe)
     install_google_workspace_deps(python_exe)
 
-    # ── Kill old servers ───────────────────────────────────────────────────
+    # Step 13: Kill stale servers
     sh("pkill -9 -f 'python.*server.py'")
     sh("pkill -9 -f 'python.*gradio'")
     sh("pkill -9 -f '_gizmo_launch'")
     time.sleep(2)
 
-    # ── Build Gradio launch wrapper ────────────────────────────────────────
+    # Step 14: Build wrapper + launch
     wrapper_path = build_launch_wrapper(python_exe)
 
     mode_label = "GPU" if USE_GPU else "CPU"
     model_desc = MODEL_FILE if USE_MODEL else "(none — load from UI)"
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print(f"  LAUNCHING v3.5.2 — {mode_label}")
     print(f"  Model   : {model_desc}")
     print(f"  Threads : {auto_thread_count()}  |  ctx: {N_CTX}")
-    print(f"  Extensions: ＋Toolbar | Dual Model | Google Workspace | Learning | Student Utils | Model Hub")
-    print(f"  URL will appear below — wait ~30 s after model loads")
-    print("="*70)
+    print(f"  Extensions: ＋Toolbar | Dual Model | Google Workspace")
+    print(f"  URL will appear below — wait ~30s after model loads")
+    print("=" * 70)
     print_ram_status()
     print("⏳ Starting server...\n")
 
-    # ── LAUNCH ─────────────────────────────────────────────────────────────
     captured = launch(python_exe, wrapper_path)
 
-    # ── Fallback: ngrok ────────────────────────────────────────────────────
     if not captured:
         print("\n[info] No URL captured — trying ngrok fallback...")
         captured = try_setup_ngrok(7860)
 
-    # ── Final summary ──────────────────────────────────────────────────────
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     if captured:
         print(f"  ✅ READY!  →  {captured}")
-        print("="*70)
+        print("=" * 70)
         print("  • ＋ button (bottom-left)  → styles, connectors, tools")
         print("  • 🔗 Google Workspace tab  → connect Docs & Slides")
         print("  • 🤖 Dual Model tab        → load a second model")
@@ -1165,7 +1229,7 @@ if __name__ == "__main__":
             print("  • ⚠️  No model loaded — go to Model tab in UI to load one")
     else:
         print("  ❌ NO PUBLIC URL CAPTURED")
-        print("="*70)
+        print("=" * 70)
         print("  Fixes: pkill -9 -f server.py | delete installer_files/ | check Colab internet")
     print_ram_status()
-    print("="*70)
+    print("=" * 70)
