@@ -90,11 +90,11 @@ def _github_config_path():
 def _load_github_config():
     p = _github_config_path()
     if not p.exists():
-        return {"repo_url": "", "repo_path": ".", "base_branch": "main", "token": ""}
+        return {"repo_path": ".", "base_branch": "main", "token": ""}
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
-        return {"repo_url": "", "repo_path": ".", "base_branch": "main", "token": ""}
+        return {"repo_path": ".", "base_branch": "main", "token": ""}
 
 
 def _save_github_config(cfg):
@@ -106,32 +106,16 @@ def _run_git(args, cwd):
     return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
 
 
-def github_connect(repo_url, repo_path, base_branch, token):
-    cfg = {
-        "repo_url": (repo_url or "").strip(),
-        "repo_path": (repo_path or ".").strip() or ".",
-        "base_branch": (base_branch or "main").strip() or "main",
-        "token": (token or "").strip(),
-    }
+def github_connect(repo_path, base_branch, token):
+    cfg = {"repo_path": (repo_path or ".").strip() or ".", "base_branch": (base_branch or "main").strip() or "main", "token": (token or "").strip()}
     repo = Path(cfg["repo_path"]).resolve()
-
-    if cfg["repo_url"] and (not repo.exists() or not (repo / ".git").exists()):
-        repo.parent.mkdir(parents=True, exist_ok=True)
-        clone_url = cfg["repo_url"]
-        if cfg["token"] and clone_url.startswith("https://") and "@" not in clone_url:
-            clone_url = "https://" + cfg["token"] + "@" + clone_url[len("https://"):]
-        proc = subprocess.run(["git", "clone", clone_url, str(repo)], text=True, capture_output=True)
-        if proc.returncode != 0:
-            return f"❌ Clone failed: {(proc.stderr or proc.stdout).strip()}", "", ""
-
     if not repo.exists() or not (repo / ".git").exists():
-        return "❌ Invalid repository path (missing .git directory).", "", ""
-
+        return "❌ Invalid repository path (missing .git directory).", ""
     code, out, err = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo)
     if code != 0:
-        return f"❌ Git repo check failed: {err or out}", "", ""
+        return f"❌ Git repo check failed: {err or out}", ""
     _save_github_config(cfg)
-    return f"✅ Connected to {repo} (current branch: {out})", str(repo), cfg.get("repo_url", "")
+    return f"✅ Connected to {repo} (current branch: {out})", str(repo)
 
 
 def github_create_branch(task_text, mode, thinking, repo_path, base_branch):
@@ -377,8 +361,8 @@ def create_ui():
 
                 with gr.Accordion('🔧 GitHub Agent (Beta)', open=False):
                     gh_defaults = _load_github_config()
-                    shared.gradio['gh_repo_url'] = gr.Textbox(label='Repository URL (optional)', value=gh_defaults.get('repo_url', ''), placeholder='https://github.com/owner/repo.git')
-                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Local repository path', value=gh_defaults.get('repo_path', '.'))
+                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Repository path', value=gh_defaults.get('repo_path', '.'))
+ main
                     shared.gradio['gh_base_branch'] = gr.Textbox(label='Base branch', value=gh_defaults.get('base_branch', 'main'))
                     shared.gradio['gh_token'] = gr.Textbox(label='GitHub token (optional, for gh auth)', type='password', value=gh_defaults.get('token', ''))
                     shared.gradio['gh_task'] = gr.Textbox(label='Task for AI coding agent', lines=4, placeholder='Describe the code change to implement...')
@@ -735,8 +719,9 @@ def create_event_handlers():
 
     shared.gradio['gh_connect_btn'].click(
         github_connect,
-        gradio('gh_repo_url', 'gh_repo_path', 'gh_base_branch', 'gh_token'),
-        gradio('gh_status', 'gh_repo_path', 'gh_repo_url'),
+        gradio('gh_repo_path', 'gh_base_branch', 'gh_token'),
+        gradio('gh_status', 'gh_repo_path'),
+ main
         show_progress=False,
     )
 
