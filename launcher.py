@@ -852,7 +852,15 @@ for f in flags:
     if f not in sys.argv:
         sys.argv.append(f)
 
+<<<<<<< codex/add-model-download-hub-extension-aisonu
 print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model | Learning | Student Utils | Model Hub")
+=======
+<<<<<<< codex/add-model-download-hub-extension-he6kfh
+print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model | Learning | Student Utils | Model Hub")
+=======
+print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
+>>>>>>> main
+>>>>>>> main
 try:
     import matplotlib; matplotlib.use('Agg', force=True)
 except Exception: pass
