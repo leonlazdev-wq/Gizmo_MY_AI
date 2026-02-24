@@ -372,7 +372,7 @@ def write_cmd_flags():
         "--ctx-size", str(N_CTX),
         "--batch-size", "512",
         "--threads", str(threads),
-        "--extensions", "gizmo_toolbar,dual_model,google_workspace",
+        "--extensions", "gizmo_toolbar,dual_model,google_workspace,learning_center,student_utils,model_hub",
     ]
     if USE_MODEL and MODEL_FILE:
         flags += ["--model", MODEL_FILE]
@@ -829,7 +829,7 @@ def build_launch_wrapper(python_exe):
     model_flag = f"'--model', '{MODEL_FILE}'," if (USE_MODEL and MODEL_FILE) else "# no model"
 
     code = f"""#!/usr/bin/env python3
-# MY-AI-Gizmo launch wrapper v3.4 — Gradio share=True
+# MY-AI-Gizmo launch wrapper v3.5 — Gradio share=True
 import sys, os
 {cuda_block}
 os.environ['MPLBACKEND']         = 'Agg'
@@ -846,16 +846,31 @@ flags = [
     '--batch-size', '512',
     '--threads', '{threads}',
     {model_flag}
-    '--extensions', 'gizmo_toolbar,dual_model,google_workspace',
+    '--extensions', 'gizmo_toolbar,dual_model,google_workspace,learning_center,student_utils,model_hub',
 ]
 for f in flags:
     if f not in sys.argv:
         sys.argv.append(f)
 
-print("[WRAPPER v3.4] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
+print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model | Learning | Student Utils | Model Hub")
 try:
     import matplotlib; matplotlib.use('Agg', force=True)
 except Exception: pass
+
+# Gradio compatibility shim for environments where Timer is unavailable (e.g. 4.37.x)
+try:
+    import gradio as gr
+    if not hasattr(gr, 'Timer'):
+        class _GizmoTimerShim:
+            def __init__(self, *args, **kwargs):
+                self.args = args
+                self.kwargs = kwargs
+            def tick(self, *args, **kwargs):
+                return None
+        gr.Timer = _GizmoTimerShim
+        print('[WRAPPER] Applied gr.Timer compatibility shim')
+except Exception as _gradio_exc:
+    print(f'[WRAPPER] gradio compatibility shim skipped: {{_gradio_exc}}')
 
 import runpy
 runpy.run_path('server.py', run_name='__main__')
@@ -1086,10 +1101,10 @@ if __name__ == "__main__":
     mode_label = "GPU" if USE_GPU else "CPU"
     model_desc = MODEL_FILE if USE_MODEL else "(none — load from UI)"
     print("\n" + "="*70)
-    print(f"  LAUNCHING v3.4 — {mode_label}")
+    print(f"  LAUNCHING v3.5.2 — {mode_label}")
     print(f"  Model   : {model_desc}")
     print(f"  Threads : {auto_thread_count()}  |  ctx: {N_CTX}")
-    print(f"  Extensions: ＋Toolbar | Dual Model | Google Workspace")
+    print(f"  Extensions: ＋Toolbar | Dual Model | Google Workspace | Learning | Student Utils | Model Hub")
     print(f"  URL will appear below — wait ~30 s after model loads")
     print("="*70)
     print_ram_status()
