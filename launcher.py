@@ -372,7 +372,7 @@ def write_cmd_flags():
         "--ctx-size", str(N_CTX),
         "--batch-size", "512",
         "--threads", str(threads),
-        "--extensions", "gizmo_toolbar,dual_model,google_workspace",
+        "--extensions", "gizmo_toolbar,dual_model,google_workspace,learning_center,student_utils,model_hub",
     ]
     if USE_MODEL and MODEL_FILE:
         flags += ["--model", MODEL_FILE]
@@ -846,13 +846,17 @@ flags = [
     '--batch-size', '512',
     '--threads', '{threads}',
     {model_flag}
-    '--extensions', 'gizmo_toolbar,dual_model,google_workspace',
+    '--extensions', 'gizmo_toolbar,dual_model,google_workspace,learning_center,student_utils,model_hub',
 ]
 for f in flags:
     if f not in sys.argv:
         sys.argv.append(f)
 
+<<<<<<< codex/add-model-download-hub-extension-he6kfh
+print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model | Learning | Student Utils | Model Hub")
+=======
 print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
+>>>>>>> main
 try:
     import matplotlib; matplotlib.use('Agg', force=True)
 except Exception: pass
@@ -1101,10 +1105,10 @@ if __name__ == "__main__":
     mode_label = "GPU" if USE_GPU else "CPU"
     model_desc = MODEL_FILE if USE_MODEL else "(none — load from UI)"
     print("\n" + "="*70)
-    print(f"  LAUNCHING v3.4 — {mode_label}")
+    print(f"  LAUNCHING v3.5.2 — {mode_label}")
     print(f"  Model   : {model_desc}")
     print(f"  Threads : {auto_thread_count()}  |  ctx: {N_CTX}")
-    print(f"  Extensions: ＋Toolbar | Dual Model | Google Workspace")
+    print(f"  Extensions: ＋Toolbar | Dual Model | Google Workspace | Learning | Student Utils | Model Hub")
     print(f"  URL will appear below — wait ~30 s after model loads")
     print("="*70)
     print_ram_status()
