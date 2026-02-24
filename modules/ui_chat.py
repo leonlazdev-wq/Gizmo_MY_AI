@@ -115,7 +115,18 @@ def _run_git(args, cwd):
     return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
 
 
+def _ensure_git_identity(repo: Path):
+    """Set a fallback git identity if none is configured — required in Colab."""
+    rc, out, _ = _run_git(["config", "user.email"], repo)
+    if rc != 0 or not out.strip():
+        _run_git(["config", "user.email", "gizmo-agent@colab.local"], repo)
+    rc, out, _ = _run_git(["config", "user.name"], repo)
+    if rc != 0 or not out.strip():
+        _run_git(["config", "user.name", "Gizmo Agent"], repo)
+
+
 def github_connect(repo_path, base_branch, token):
+    # BUG FIX 1+2: save config AND embed token into the remote URL so push works
     cfg = {"repo_path": (repo_path or ".").strip() or ".", "base_branch": (base_branch or "main").strip() or "main", "token": (token or "").strip()}
     repo = Path(cfg["repo_path"]).resolve()
     if not repo.exists() or not (repo / ".git").exists():
@@ -123,17 +134,26 @@ def github_connect(repo_path, base_branch, token):
     code, out, err = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo)
     if code != 0:
         return f"❌ Git repo check failed: {err or out}", ""
+    # Embed token into remote URL so git push authenticates without gh CLI
+    if cfg["token"]:
+        rc, remote_url, _ = _run_git(["remote", "get-url", "origin"], repo)
+        if rc == 0 and remote_url.startswith("https://") and "@" not in remote_url:
+            authed_url = remote_url.replace("https://", f"https://{cfg['token']}@")
+            _run_git(["remote", "set-url", "origin", authed_url], repo)
+    _ensure_git_identity(repo)
     _save_github_config(cfg)
     return f"✅ Connected to {repo} (current branch: {out})", str(repo)
 
 
-def github_create_branch(task_text, mode, thinking, repo_path, base_branch):
+def github_create_branch(task_text, mode, reasoning_effort, repo_path, base_branch):
+    # BUG FIX 3: renamed 'thinking' → 'reasoning_effort' to match what the UI sends
     repo = Path((repo_path or ".").strip() or ".").resolve()
     if not repo.exists() or not (repo / ".git").exists():
         return "❌ Invalid repository path.", "", ""
     if not (task_text or "").strip():
         return "❌ Task is required.", "", ""
 
+    _ensure_git_identity(repo)
     branch = f"gizmo/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     _run_git(["checkout", base_branch or "main"], repo)
     code, out, err = _run_git(["checkout", "-b", branch], repo)
@@ -144,12 +164,14 @@ def github_create_branch(task_text, mode, thinking, repo_path, base_branch):
     tasks_dir.mkdir(parents=True, exist_ok=True)
     task_file = tasks_dir / f"task_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
     task_file.write_text(
-        f"# GitHub Agent Task\n\n- Mode: {mode}\n- Thinking: {thinking}\n- Branch: {branch}\n\n## Instruction\n{task_text}\n",
+        f"# GitHub Agent Task\n\n- Mode: {mode}\n- Reasoning effort: {reasoning_effort}\n- Branch: {branch}\n\n## Instruction\n{task_text}\n",
         encoding="utf-8",
     )
 
     _run_git(["add", str(task_file.relative_to(repo))], repo)
-    _run_git(["commit", "-m", f"chore: start github agent task ({branch})"], repo)
+    code, out, err = _run_git(["commit", "-m", f"chore: start github agent task ({branch})"], repo)
+    if code != 0:
+        return f"❌ Commit failed: {err or out}", "", ""
     return f"✅ Branch ready: {branch}. Task file committed.", branch, str(task_file)
 
 
@@ -161,13 +183,15 @@ def github_open_pr(repo_path, branch, title, body):
     if not branch:
         return "❌ Create a branch first.", ""
 
+    # BUG FIX 4: ensure identity is set before push (needed for any rebase/merge during push)
+    _ensure_git_identity(repo)
     code, out, err = _run_git(["push", "-u", "origin", branch], repo)
     if code != 0:
-        return f"❌ Push failed: {err or out}", ""
+        return f"❌ Push failed: {err or out}\n\nTip: Make sure you pasted your GitHub token in the Connect step.", ""
 
     gh_check = subprocess.run(["bash", "-lc", "command -v gh"], text=True, capture_output=True)
     if gh_check.returncode != 0:
-        return "✅ Branch pushed. Install/authenticate GitHub CLI (`gh`) to create PR automatically.", ""
+        return f"✅ Branch '{branch}' pushed. Open a PR manually on GitHub, or install the GitHub CLI (`gh`) to auto-create PRs.", ""
 
     cmd = ["gh", "pr", "create", "--title", title or f"AI: {branch}", "--body", body or "Automated PR by Gizmo GitHub Agent", "--head", branch]
     proc = subprocess.run(cmd, cwd=repo, text=True, capture_output=True)
@@ -526,7 +550,7 @@ def create_character_settings_ui():
                 shared.gradio['your_picture'] = gr.Image(label='Your picture', type='filepath', value=Image.open(Path('user_data/cache/pfp_me.png')) if Path('user_data/cache/pfp_me.png').exists() else None, interactive=not mu)
 
 
-    print("[info] registered shared.gradio keys:", list(shared.gradio.keys()))
+
 
 
 def create_chat_settings_ui():
