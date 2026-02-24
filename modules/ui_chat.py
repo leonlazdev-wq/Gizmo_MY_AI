@@ -1,4 +1,6 @@
 import json
+import subprocess
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
@@ -77,6 +79,110 @@ def apply_lesson_tab_prompt():
 
 MESSAGE_ACTIONS = MessageActions()
 CONTEXT_MANAGER = ContextManager()
+
+
+def _github_config_path():
+    p = Path("user_data") / "github_agent.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _load_github_config():
+    p = _github_config_path()
+    if not p.exists():
+        return {"repo_url": "", "repo_path": ".", "base_branch": "main", "token": ""}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {"repo_url": "", "repo_path": ".", "base_branch": "main", "token": ""}
+
+
+def _save_github_config(cfg):
+    _github_config_path().write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+
+
+def _run_git(args, cwd):
+    proc = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True)
+    return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
+
+
+def github_connect(repo_url, repo_path, base_branch, token):
+    cfg = {
+        "repo_url": (repo_url or "").strip(),
+        "repo_path": (repo_path or ".").strip() or ".",
+        "base_branch": (base_branch or "main").strip() or "main",
+        "token": (token or "").strip(),
+    }
+    repo = Path(cfg["repo_path"]).resolve()
+
+    if cfg["repo_url"] and (not repo.exists() or not (repo / ".git").exists()):
+        repo.parent.mkdir(parents=True, exist_ok=True)
+        clone_url = cfg["repo_url"]
+        if cfg["token"] and clone_url.startswith("https://") and "@" not in clone_url:
+            clone_url = "https://" + cfg["token"] + "@" + clone_url[len("https://"):]
+        proc = subprocess.run(["git", "clone", clone_url, str(repo)], text=True, capture_output=True)
+        if proc.returncode != 0:
+            return f"❌ Clone failed: {(proc.stderr or proc.stdout).strip()}", "", ""
+
+    if not repo.exists() or not (repo / ".git").exists():
+        return "❌ Invalid repository path (missing .git directory).", "", ""
+
+    code, out, err = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo)
+    if code != 0:
+        return f"❌ Git repo check failed: {err or out}", "", ""
+    _save_github_config(cfg)
+    return f"✅ Connected to {repo} (current branch: {out})", str(repo), cfg.get("repo_url", "")
+
+
+def github_create_branch(task_text, mode, thinking, repo_path, base_branch):
+    repo = Path((repo_path or ".").strip() or ".").resolve()
+    if not repo.exists() or not (repo / ".git").exists():
+        return "❌ Invalid repository path.", "", ""
+    if not (task_text or "").strip():
+        return "❌ Task is required.", "", ""
+
+    branch = f"gizmo/{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    _run_git(["checkout", base_branch or "main"], repo)
+    code, out, err = _run_git(["checkout", "-b", branch], repo)
+    if code != 0:
+        return f"❌ Could not create branch: {err or out}", "", ""
+
+    tasks_dir = repo / "user_data" / "github_agent_tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    task_file = tasks_dir / f"task_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    task_file.write_text(
+        f"# GitHub Agent Task\n\n- Mode: {mode}\n- Thinking: {thinking}\n- Branch: {branch}\n\n## Instruction\n{task_text}\n",
+        encoding="utf-8",
+    )
+
+    _run_git(["add", str(task_file.relative_to(repo))], repo)
+    _run_git(["commit", "-m", f"chore: start github agent task ({branch})"], repo)
+    return f"✅ Branch ready: {branch}. Task file committed.", branch, str(task_file)
+
+
+def github_open_pr(repo_path, branch, title, body):
+    cfg = _load_github_config()
+    repo = Path((repo_path or cfg.get("repo_path") or ".")).resolve()
+    if not repo.exists() or not (repo / ".git").exists():
+        return "❌ Invalid repository path.", ""
+    if not branch:
+        return "❌ Create a branch first.", ""
+
+    code, out, err = _run_git(["push", "-u", "origin", branch], repo)
+    if code != 0:
+        return f"❌ Push failed: {err or out}", ""
+
+    gh_check = subprocess.run(["bash", "-lc", "command -v gh"], text=True, capture_output=True)
+    if gh_check.returncode != 0:
+        return "✅ Branch pushed. Install/authenticate GitHub CLI (`gh`) to create PR automatically.", ""
+
+    cmd = ["gh", "pr", "create", "--title", title or f"AI: {branch}", "--body", body or "Automated PR by Gizmo GitHub Agent", "--head", branch]
+    proc = subprocess.run(cmd, cwd=repo, text=True, capture_output=True)
+    if proc.returncode != 0:
+        return f"⚠️ Branch pushed, but PR creation failed: {(proc.stderr or proc.stdout).strip()}", ""
+    pr_url = (proc.stdout or "").strip().splitlines()[-1] if (proc.stdout or "").strip() else ""
+    return "✅ Pull request created.", pr_url
+
 
 
 def refresh_template_choices(category):
@@ -218,7 +324,7 @@ def create_ui():
             shared.gradio['send-chat-to-notebook'] = gr.Button('Send to Notebook')
             shared.gradio['show_controls'] = gr.Checkbox(value=shared.settings['show_controls'], label='Show controls (Ctrl+S)', elem_id='show-controls')
 
-        with gr.Row(elem_id='adaptive-toolbar', visible=True):
+        with gr.Row(elem_id='adaptive-toolbar', visible=False):
             # Visual mock: ✂️ Summarize | 📝 Action items | 🐞 Find bugs | 📎 Create task
             shared.gradio['adaptive_text'] = gr.Textbox(label='Adaptive input', lines=2)
             shared.gradio['adaptive_summarize_btn'] = gr.Button('✂️ Summarize', elem_id='adaptive-summarize')
@@ -269,12 +375,30 @@ def create_ui():
                 with gr.Row():
                     shared.gradio['chat-instruct_command'] = gr.Textbox(value=shared.settings['chat-instruct_command'], lines=12, label='Command for chat-instruct mode', info='<|character|> and <|prompt|> get replaced with the bot name and the regular chat prompt respectively.', visible=shared.settings['mode'] == 'chat-instruct', elem_classes=['add_scrollbar'])
 
+                with gr.Accordion('🔧 GitHub Agent (Beta)', open=False):
+                    gh_defaults = _load_github_config()
+                    shared.gradio['gh_repo_url'] = gr.Textbox(label='Repository URL (optional)', value=gh_defaults.get('repo_url', ''), placeholder='https://github.com/owner/repo.git')
+                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Local repository path', value=gh_defaults.get('repo_path', '.'))
+                    shared.gradio['gh_base_branch'] = gr.Textbox(label='Base branch', value=gh_defaults.get('base_branch', 'main'))
+                    shared.gradio['gh_token'] = gr.Textbox(label='GitHub token (optional, for gh auth)', type='password', value=gh_defaults.get('token', ''))
+                    shared.gradio['gh_task'] = gr.Textbox(label='Task for AI coding agent', lines=4, placeholder='Describe the code change to implement...')
+                    with gr.Row():
+                        shared.gradio['gh_connect_btn'] = gr.Button('🔌 Connect Repo')
+                        shared.gradio['gh_branch_btn'] = gr.Button('🌿 Create Branch + Task Commit')
+                    with gr.Row():
+                        shared.gradio['gh_pr_title'] = gr.Textbox(label='PR title', value='AI generated change')
+                        shared.gradio['gh_pr_btn'] = gr.Button('🚀 Push + Open PR', variant='primary')
+                    shared.gradio['gh_status'] = gr.Textbox(label='GitHub Agent Status', interactive=False)
+                    shared.gradio['gh_branch'] = gr.Textbox(label='Working branch', interactive=False)
+                    shared.gradio['gh_task_file'] = gr.Textbox(label='Task file', interactive=False)
+                    shared.gradio['gh_pr_url'] = gr.Textbox(label='PR URL', interactive=False)
+
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
                 with gr.Row():
-                    shared.gradio['count_tokens'] = gr.Button('Count tokens', size='sm')
+                    shared.gradio['count_tokens'] = gr.Button('Count tokens', size='sm', visible=False)
 
-                shared.gradio['token_display'] = gr.HTML(value='', elem_classes='token-display')
+                shared.gradio['token_display'] = gr.HTML(value='', elem_classes='token-display', visible=False)
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
                 gr.Markdown('### 📚 Chat Templates')
@@ -608,6 +732,27 @@ def create_event_handlers():
         None, gradio('mode'), None, js="(mode) => {const characterContainer = document.getElementById('character-menu').parentNode.parentNode; const isInChatTab = document.querySelector('#chat-controls').contains(characterContainer); if (isInChatTab) { characterContainer.style.display = mode === 'instruct' ? 'none' : ''; } if (mode === 'instruct') document.querySelectorAll('.bigProfilePicture').forEach(el => el.remove());}")
 
     shared.gradio['chat_style'].change(chat.redraw_html, gradio(reload_arr), gradio('display'), show_progress=False)
+
+    shared.gradio['gh_connect_btn'].click(
+        github_connect,
+        gradio('gh_repo_url', 'gh_repo_path', 'gh_base_branch', 'gh_token'),
+        gradio('gh_status', 'gh_repo_path', 'gh_repo_url'),
+        show_progress=False,
+    )
+
+    shared.gradio['gh_branch_btn'].click(
+        github_create_branch,
+        gradio('gh_task', 'mode', 'reasoning_effort', 'gh_repo_path', 'gh_base_branch'),
+        gradio('gh_status', 'gh_branch', 'gh_task_file'),
+        show_progress=False,
+    )
+
+    shared.gradio['gh_pr_btn'].click(
+        github_open_pr,
+        gradio('gh_repo_path', 'gh_branch', 'gh_pr_title', 'gh_task'),
+        gradio('gh_status', 'gh_pr_url'),
+        show_progress=False,
+    )
 
     shared.gradio['navigate_version'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(

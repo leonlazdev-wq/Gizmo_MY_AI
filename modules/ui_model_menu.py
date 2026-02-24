@@ -56,9 +56,23 @@ def create_ui():
                     with gr.Row():
                         shared.gradio['metrics_start_btn'] = gr.Button('▶️ Start metrics')
                         shared.gradio['metrics_stop_btn'] = gr.Button('⏹️ Stop metrics')
-                        shared.gradio['metrics_refresh_btn'] = gr.Button('🔄 Refresh now')
+                        shared.gradio['metrics_refresh_btn'] = gr.Button('🔄 Refresh now', elem_id='metrics-refresh-btn')
                     shared.gradio['metrics_display'] = gr.HTML(value=refresh_metrics_dashboard())
-                    shared.gradio['metrics_timer'] = gr.Timer(value=2.0)
+                    if hasattr(gr, 'Timer'):
+                        shared.gradio['metrics_timer'] = gr.Timer(value=2.0)
+                    else:
+                        shared.gradio['metrics_timer'] = None
+                        gr.HTML("""
+                        <script>
+                        (() => {
+                          if (window.__metricsRefreshInterval) return;
+                          window.__metricsRefreshInterval = setInterval(() => {
+                            const btn = document.querySelector('#metrics-refresh-btn button');
+                            if (btn) btn.click();
+                          }, 2000);
+                        })();
+                        </script>
+                        """)
 
                 with gr.Accordion('🌐 Model Hub', open=False):
                     shared.gradio['hub_query'] = gr.Textbox(label='Search Models', placeholder='llama, mistral, phi...')
@@ -214,7 +228,8 @@ def create_event_handlers():
     shared.gradio['metrics_start_btn'].click(lambda: METRICS.start_monitoring(), None, gradio('metrics_status'), show_progress=False)
     shared.gradio['metrics_stop_btn'].click(lambda: METRICS.stop_monitoring(), None, gradio('metrics_status'), show_progress=False)
     shared.gradio['metrics_refresh_btn'].click(refresh_metrics_dashboard, None, gradio('metrics_display'), show_progress=False)
-    shared.gradio['metrics_timer'].tick(refresh_metrics_dashboard, None, gradio('metrics_display'), show_progress=False)
+    if shared.gradio.get('metrics_timer') is not None:
+        shared.gradio['metrics_timer'].tick(refresh_metrics_dashboard, None, gradio('metrics_display'), show_progress=False)
 
     shared.gradio['hub_search_btn'].click(
         search_hub_models,

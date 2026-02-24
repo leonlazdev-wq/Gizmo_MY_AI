@@ -408,6 +408,23 @@ Run `python download-model.py --help` to see all the options.
 
 https://github.com/oobabooga/text-generation-webui/wiki
 
+
+### Colab lesson tabs compatibility (no full web server required)
+
+If you want to quickly validate the new lesson tabs and utility features directly inside a Colab cell, use the compatibility helper:
+
+```python
+from modules.colab_compat import run_colab_feature_smoke_test, display_lesson_tabs_in_colab
+
+print(run_colab_feature_smoke_test())  # dependency + import checks
+display_lesson_tabs_in_colab()         # renders notebook-safe lesson tabs
+```
+
+What this checks:
+- Frontend notebook dependencies (`IPython.display`, `google.colab` when available).
+- Importability of recent extension tabs (`learning_center`, `student_utils`, `model_hub`).
+- Rendering of a notebook-safe tab UI via `IPython.display.display(HTML(...))`.
+
 ## Google Colab notebook
 
 https://colab.research.google.com/github/oobabooga/text-generation-webui/blob/main/Colab-TextGen-GPU.ipynb
