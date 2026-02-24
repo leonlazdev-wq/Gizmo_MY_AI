@@ -160,15 +160,27 @@ def github_create_branch(task_text, mode, reasoning_effort, repo_path, base_bran
     if code != 0:
         return f"❌ Could not create branch: {err or out}", "", ""
 
-    tasks_dir = repo / "user_data" / "github_agent_tasks"
+    # BUG FIX: write task file to repo root level folder, NOT inside user_data/
+    # user_data/ is a symlink created by the launcher pointing to Google Drive,
+    # so git cannot track files written there and the commit silently has nothing to stage.
+    tasks_dir = repo / "github_agent_tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
-    task_file = tasks_dir / f"task_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    task_file = tasks_dir / f"task_{stamp}.md"
     task_file.write_text(
         f"# GitHub Agent Task\n\n- Mode: {mode}\n- Reasoning effort: {reasoning_effort}\n- Branch: {branch}\n\n## Instruction\n{task_text}\n",
         encoding="utf-8",
     )
 
-    _run_git(["add", str(task_file.relative_to(repo))], repo)
+    # Use the relative path from repo root so git can find it reliably
+    rel_path = str(task_file.relative_to(repo))
+    _run_git(["add", rel_path], repo)
+
+    # Verify something is actually staged before committing
+    rc_staged, staged_out, _ = _run_git(["diff", "--cached", "--name-only"], repo)
+    if not staged_out.strip():
+        return f"❌ Commit failed: nothing was staged. Task file path: {rel_path}", "", ""
+
     code, out, err = _run_git(["commit", "-m", f"chore: start github agent task ({branch})"], repo)
     if code != 0:
         return f"❌ Commit failed: {err or out}", "", ""
