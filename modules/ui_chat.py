@@ -70,23 +70,6 @@ def apply_lesson_tab_prompt():
 
 
 
-
-
-def _ensure_adaptive_keys() -> None:
-    """Ensure legacy/new adaptive key aliases exist before event binding."""
-    alias_pairs = (
-        ('adaptive_summarize', 'adaptive_summarize_btn'),
-        ('adaptive_actions', 'adaptive_actions_btn'),
-        ('adaptive_bugs', 'adaptive_bugs_btn'),
-        ('adaptive_task', 'adaptive_task_btn'),
-    )
-    for legacy, new in alias_pairs:
-        if legacy not in shared.gradio and new in shared.gradio:
-            shared.gradio[legacy] = shared.gradio[new]
-        if new not in shared.gradio and legacy in shared.gradio:
-            shared.gradio[new] = shared.gradio[legacy]
-
-
 def create_ui():
     mu = shared.args.multi_user
 
@@ -176,11 +159,6 @@ def create_ui():
             shared.gradio['adaptive_bugs_btn'] = gr.Button('🐞 Find bugs')
             shared.gradio['adaptive_task_btn'] = gr.Button('📎 Create task')
             shared.gradio['adaptive_output'] = gr.Textbox(label='Adaptive output', lines=4)
-            # Backward-compat key aliases used by older wrappers/extensions
-            shared.gradio['adaptive_summarize'] = shared.gradio['adaptive_summarize_btn']
-            shared.gradio['adaptive_actions'] = shared.gradio['adaptive_actions_btn']
-            shared.gradio['adaptive_bugs'] = shared.gradio['adaptive_bugs_btn']
-            shared.gradio['adaptive_task'] = shared.gradio['adaptive_task_btn']
             shared.gradio['provenance_btn'] = gr.Button('🕒 Provenance')
             shared.gradio['provenance_output'] = gr.JSON(label='Provenance timeline')
 
@@ -325,6 +303,38 @@ def create_chat_settings_ui():
 
 
 def create_event_handlers():
+    shared.gradio['adaptive_summarize'].click(
+        lambda text: adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['adaptive_actions'].click(
+        lambda text: adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['adaptive_bugs'].click(
+        lambda text: 'Potential issues:\n' + adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['adaptive_task'].click(
+        lambda text: 'Task created from message summary:\n' + adaptive_ui.summarize_text(text if isinstance(text, str) else str(text)),
+        gradio('textbox'),
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+    shared.gradio['provenance_btn'].click(
+        lambda: str(audit.get_timeline('default', 'last-message')),
+        [],
+        gradio('adaptive_output'),
+        show_progress=False,
+    )
+
+    _ensure_adaptive_keys()
 
     _ensure_adaptive_keys()
 
@@ -378,46 +388,6 @@ def create_event_handlers():
         None,
         gradio('custom_style_enabled', 'custom_style_prompt'),
         show_progress=False)
-
-
-    if 'adaptive_summarize' in shared.gradio or 'adaptive_summarize_btn' in shared.gradio:
-        try:
-            target = _get_any('adaptive_summarize', 'adaptive_summarize_btn')
-            summarize_input = shared.gradio.get('chatbot_input', shared.gradio.get('adaptive_text'))
-            summarize_output = shared.gradio.get('chatbot_output', shared.gradio.get('adaptive_output'))
-            if target is not None and summarize_input is not None and summarize_output is not None:
-                target.click(
-                    lambda text: summarize_text(text if isinstance(text, str) else ''),
-                    inputs=[summarize_input],
-                    outputs=[summarize_output],
-                    show_progress=False,
-                )
-        except Exception as e:
-            print(f"[warn] adaptive_summarize binding failed: {e}")
-    _bind_click(
-        ('adaptive_actions_btn', 'adaptive_actions'),
-        lambda text: '\n'.join([f"- {line.strip()}" for line in (text or '').split('.') if line.strip()][:5]),
-        ('adaptive_text',),
-        ('adaptive_output',),
-    )
-    _bind_click(
-        ('adaptive_bugs_btn', 'adaptive_bugs'),
-        lambda text: f"Suggestions: {', '.join(suggest_actions(text or ''))}",
-        ('adaptive_text',),
-        ('adaptive_output',),
-    )
-    _bind_click(
-        ('adaptive_task_btn', 'adaptive_task'),
-        lambda text: f"Task created from text: {(text or '')[:120]}",
-        ('adaptive_text',),
-        ('adaptive_output',),
-    )
-    _bind_click(
-        ('provenance_btn',),
-        lambda: list_steps('default_session', 'latest'),
-        (),
-        ('provenance_output',),
-    )
 
     shared.gradio['Regenerate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(

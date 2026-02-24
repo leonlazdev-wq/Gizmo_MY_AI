@@ -22,6 +22,16 @@ def create_ui():
                     shared.gradio['show_minimal_footer'] = gr.Checkbox(label='Show minimal footer', value=shared.settings.get('show_minimal_footer', True))
                     shared.gradio['display_density'] = gr.Dropdown(label='Display density', choices=['Compact', 'Comfortable', 'Spacious'], value=shared.settings.get('display_density', 'Comfortable'))
 
+                gr.Markdown("## Integrations (opt-in)")
+                # Visual mock: [ ] Workflows [ ] Collaboration [ ] Marketplace [ ] SSO [ ] Devtests
+                shared.gradio['enable_workflows'] = gr.Checkbox(label='Enable Workflows', value=shared.settings.get('enable_workflows', False))
+                shared.gradio['enable_collab'] = gr.Checkbox(label='Enable Collaboration', value=shared.settings.get('enable_collab', False))
+                shared.gradio['enable_marketplace'] = gr.Checkbox(label='Enable Marketplace', value=shared.settings.get('enable_marketplace', False))
+                shared.gradio['enable_sso'] = gr.Checkbox(label='Enable SSO/OAuth', value=shared.settings.get('enable_sso', False))
+                shared.gradio['enable_devtests'] = gr.Checkbox(label='Enable Developer Tests', value=shared.settings.get('enable_devtests', False))
+                shared.gradio['integrations_save_btn'] = gr.Button('Save integration toggles', elem_classes='refresh-button')
+                shared.gradio['integrations_status'] = gr.Textbox(label='Integration status', interactive=False)
+
             with gr.Column():
                 gr.Markdown("## Extensions & flags")
                 shared.gradio['save_settings'] = gr.Button('Save extensions settings to user_data/settings.yaml', elem_classes='refresh-button', interactive=not mu)
@@ -249,3 +259,53 @@ def get_boolean_arguments(active=False):
         return bool_active
     else:
         return bool_list
+
+
+def build_lesson_request(topic, level, language, duration_min, goals, include_quiz, include_visuals):
+    topic = (topic or '').strip()
+    if not topic:
+        return "❌ Enter a lesson topic first.", ""
+
+    goals_list = [g.strip() for g in (goals or '').split("\n") if g.strip()]
+    goals_text = "\n".join(f"- {g}" for g in goals_list) if goals_list else "- Explain key idea in simple language"
+
+    request = (
+        f"Create a {int(duration_min)}-minute lesson for {level} students.\n"
+        f"Topic: {topic}\n"
+        f"Language: {language or 'auto'}\n"
+        f"Goals:\n{goals_text}\n"
+        f"Include quiz: {'yes' if include_quiz else 'no'}\n"
+        f"Include visuals: {'yes' if include_visuals else 'no'}\n\n"
+        "Output strict JSON with keys: title, language, bullets, tts_audio_url, images, quiz, slide_export."
+    )
+    return "✅ Lesson request ready. Copy to chat.", request
+
+
+def run_session_google_doc(credentials_path, document_id, text):
+    if not credentials_path or not document_id:
+        return "Add credentials path and Google Doc ID first."
+
+    try:
+        return write_text_to_doc(credentials_path.strip(), document_id.strip(), text)
+    except Exception as exc:
+        return f"Google Docs action failed: {exc}"
+
+
+def run_session_google_slide_image(credentials_path, presentation_id, slide_number, image_query):
+    if not credentials_path or not presentation_id:
+        return "Add credentials path and Google Slides Presentation ID first."
+
+    try:
+        return add_image_to_slide(credentials_path.strip(), presentation_id.strip(), int(slide_number), image_query)
+    except Exception as exc:
+        return f"Google Slides image action failed: {exc}"
+
+
+def run_session_slide_designer(credentials_path, presentation_id, slide_number, designer_prompt, slide_text, image_query):
+    if not credentials_path or not presentation_id:
+        return "Add credentials path and Google Slides Presentation ID first."
+
+    try:
+        return apply_slide_designer_prompt(credentials_path.strip(), presentation_id.strip(), int(slide_number), designer_prompt, slide_text, image_query)
+    except Exception as exc:
+        return f"Slide designer failed: {exc}"
