@@ -214,7 +214,34 @@ def github_open_pr(repo_path, branch, title, body):
 
 
 
-def refresh_template_choices(category):
+def github_send_to_chat(gh_status, gh_branch, gh_task, gh_pr_url):
+    """Format current GitHub agent state as a chat message so the AI can see it."""
+    lines = ["🔧 **GitHub Agent Update**"]
+    if gh_status:
+        lines.append(f"**Status:** {gh_status}")
+    if gh_branch:
+        lines.append(f"**Branch:** `{gh_branch}`")
+    if gh_task and gh_task.strip():
+        lines.append(f"**Task:**\n{gh_task.strip()}")
+    if gh_pr_url:
+        lines.append(f"**PR URL:** {gh_pr_url}")
+    return {"text": "\n".join(lines), "files": []}
+
+
+def github_status_html(status, branch, pr_url):
+    """Render a compact status bar for the main panel."""
+    if not status:
+        return "<div class='gh-status-bar gh-idle'>🔧 GitHub Agent — not connected</div>"
+    color = "#2ecc71" if "✅" in status else "#e74c3c" if "❌" in status else "#f39c12"
+    branch_pill = f"<span class='gh-branch-pill'>🌿 {branch}</span>" if branch else ""
+    pr_link = f" <a href='{pr_url}' target='_blank' class='gh-pr-link'>View PR →</a>" if pr_url else ""
+    return (
+        f"<div class='gh-status-bar' style='border-left:3px solid {color}'>"
+        f"{status}{branch_pill}{pr_link}</div>"
+    )
+
+
+
     return gr.update(choices=get_template_choices(category), value=None)
 
 
@@ -307,6 +334,64 @@ def create_ui():
         with gr.Row():
             with gr.Column(elem_id='chat-col'):
                 shared.gradio['html_display'] = gr.HTML(value=chat_html_wrapper({'internal': [], 'visible': [], 'metadata': {}}, '', '', 'chat', 'cai-chat', '')['html'], visible=True)
+
+                # ── GitHub Agent Panel (main window, toggleable) ──────────────
+                with gr.Row(visible=False, elem_id='gh-main-panel-row') as shared.gradio['gh_panel_row']:
+                    with gr.Column(elem_id='gh-main-panel'):
+                        gr.HTML("""
+                        <style>
+                        #gh-main-panel-row{border-top:1px solid #2a2a4a;padding-top:10px}
+                        #gh-main-panel{background:#12121e;border:1px solid #2a2a4a;
+                            border-radius:12px;padding:14px 16px}
+                        .gh-panel-title{font-size:1em;font-weight:700;color:#8ec8ff;
+                            margin-bottom:12px;display:flex;align-items:center;gap:8px}
+                        .gh-col-label{font-size:.75em;font-weight:700;color:#8ec8ff;
+                            text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+                        .gh-status-bar{padding:6px 10px;border-radius:6px;font-size:.85em;
+                            background:#1a1a2e;border-left:3px solid #555;
+                            margin-top:8px;line-height:1.5;word-break:break-word}
+                        .gh-idle{color:#888}
+                        .gh-branch-pill{background:#1e3a5f;color:#8ec8ff;border-radius:12px;
+                            padding:2px 8px;font-size:.82em;margin-left:8px;font-family:monospace}
+                        .gh-pr-link{color:#8ec8ff;text-decoration:underline;margin-left:6px}
+                        </style>
+                        <div class='gh-panel-title'>🔧 GitHub Agent</div>
+                        """)
+                        with gr.Row():
+                            with gr.Column(scale=3, min_width=160):
+                                gr.HTML("<div class='gh-col-label'>Task</div>")
+                                shared.gradio['gh_task_panel'] = gr.Textbox(
+                                    label='',
+                                    lines=3,
+                                    placeholder='Describe the change you want the AI to make...',
+                                    elem_id='gh-task-panel-input',
+                                    show_label=False,
+                                )
+                            with gr.Column(scale=2, min_width=130):
+                                gr.HTML("<div class='gh-col-label'>PR Title</div>")
+                                shared.gradio['gh_pr_title_panel'] = gr.Textbox(
+                                    label='',
+                                    value='AI generated change',
+                                    elem_id='gh-pr-title-panel',
+                                    show_label=False,
+                                )
+                                gr.HTML("<div class='gh-col-label' style='margin-top:8px'>Branch</div>")
+                                shared.gradio['gh_branch_panel'] = gr.Textbox(
+                                    label='',
+                                    interactive=False,
+                                    placeholder='(none yet)',
+                                    show_label=False,
+                                )
+                        with gr.Row():
+                            shared.gradio['gh_panel_branch_btn'] = gr.Button('🌿 Create Branch', size='sm')
+                            shared.gradio['gh_panel_pr_btn'] = gr.Button('🚀 Push + PR', size='sm', variant='primary')
+                            shared.gradio['gh_panel_send_btn'] = gr.Button('💬 Send Status to Chat', size='sm', variant='secondary')
+                            shared.gradio['gh_panel_close_btn'] = gr.Button('✕ Close', size='sm')
+                        shared.gradio['gh_panel_status'] = gr.HTML(
+                            value="<div class='gh-status-bar gh-idle'>Connect in the sidebar first → 🔧 GitHub Agent</div>",
+                            elem_id='gh-panel-status-html',
+                        )
+
                 with gr.Row(elem_id="chat-input-row"):
                     with gr.Column(scale=1, elem_id='gr-hover-container'):
                         gr.HTML(value='<div class="hover-element" onclick="void(0)"><span style="width: 100px; display: block" id="hover-element-button">&#9776;</span><div class="hover-menu" id="hover-menu"></div>', elem_id='gr-hover')
@@ -340,6 +425,7 @@ def create_ui():
                         with gr.Row():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
+                        shared.gradio['gh_toggle_btn'] = gr.Button('🔧 Git', elem_id='gh-toggle-btn', size='sm')
 
 
         # Hover menu buttons
@@ -404,22 +490,78 @@ def create_ui():
                 with gr.Row():
                     shared.gradio['chat-instruct_command'] = gr.Textbox(value=shared.settings['chat-instruct_command'], lines=12, label='Command for chat-instruct mode', info='<|character|> and <|prompt|> get replaced with the bot name and the regular chat prompt respectively.', visible=shared.settings['mode'] == 'chat-instruct', elem_classes=['add_scrollbar'])
 
-                with gr.Accordion('🔧 GitHub Agent (Beta)', open=False):
+                with gr.Accordion('🔧 GitHub Agent', open=False, elem_id='gh-sidebar-accordion'):
+                    gr.HTML("""
+                    <style>
+                    .gh-step-label{font-size:.75em;font-weight:700;letter-spacing:.08em;
+                        color:#8ec8ff;text-transform:uppercase;margin-bottom:4px;margin-top:8px}
+                    .gh-status-bar{padding:8px 12px;border-radius:8px;font-size:.88em;
+                        background:#1a1a2e;border-left:3px solid #555;margin:6px 0;line-height:1.5}
+                    .gh-idle{color:#888}
+                    .gh-branch-pill{background:#1e3a5f;color:#8ec8ff;border-radius:12px;
+                        padding:2px 8px;font-size:.82em;margin-left:8px;font-family:monospace}
+                    .gh-pr-link{color:#8ec8ff;text-decoration:underline;margin-left:6px}
+                    .gh-divider{border:none;border-top:1px solid #2a2a3e;margin:10px 0}
+                    #gh-main-panel{background:#12121e;border:1px solid #2a2a4a;
+                        border-radius:12px;padding:16px;margin:8px 0}
+                    #gh-main-panel .gh-step-label{display:block}
+                    </style>
+                    """)
                     gh_defaults = _load_github_config()
-                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Repository path', value=gh_defaults.get('repo_path', '.'))
-                    shared.gradio['gh_base_branch'] = gr.Textbox(label='Base branch', value=gh_defaults.get('base_branch', 'main'))
-                    shared.gradio['gh_token'] = gr.Textbox(label='GitHub token (optional, for gh auth)', type='password', value=gh_defaults.get('token', ''))
-                    shared.gradio['gh_task'] = gr.Textbox(label='Task for AI coding agent', lines=4, placeholder='Describe the code change to implement...')
+
+                    gr.HTML("<div class='gh-step-label'>① Connection</div>")
+                    shared.gradio['gh_repo_path'] = gr.Textbox(
+                        label='Repository path',
+                        value=gh_defaults.get('repo_path', '/content/text-generation-webui'),
+                        placeholder='/content/text-generation-webui',
+                        elem_id='gh-repo-path',
+                    )
                     with gr.Row():
-                        shared.gradio['gh_connect_btn'] = gr.Button('🔌 Connect Repo')
-                        shared.gradio['gh_branch_btn'] = gr.Button('🌿 Create Branch + Task Commit')
+                        shared.gradio['gh_base_branch'] = gr.Textbox(
+                            label='Base branch',
+                            value=gh_defaults.get('base_branch', 'main'),
+                            scale=1,
+                        )
+                        shared.gradio['gh_token'] = gr.Textbox(
+                            label='GitHub token',
+                            type='password',
+                            value=gh_defaults.get('token', ''),
+                            placeholder='ghp_...',
+                            scale=2,
+                        )
+                    shared.gradio['gh_connect_btn'] = gr.Button('🔌 Connect Repo', variant='primary', size='sm')
+
+                    gr.HTML("<hr class='gh-divider'><div class='gh-step-label'>② Task</div>")
+                    shared.gradio['gh_task'] = gr.Textbox(
+                        label='Describe the change for the AI',
+                        lines=4,
+                        placeholder='Example: Add a welcome message to the Student Utils tab...',
+                        elem_id='gh-task-input',
+                    )
                     with gr.Row():
-                        shared.gradio['gh_pr_title'] = gr.Textbox(label='PR title', value='AI generated change')
-                        shared.gradio['gh_pr_btn'] = gr.Button('🚀 Push + Open PR', variant='primary')
-                    shared.gradio['gh_status'] = gr.Textbox(label='GitHub Agent Status', interactive=False)
-                    shared.gradio['gh_branch'] = gr.Textbox(label='Working branch', interactive=False)
-                    shared.gradio['gh_task_file'] = gr.Textbox(label='Task file', interactive=False)
-                    shared.gradio['gh_pr_url'] = gr.Textbox(label='PR URL', interactive=False)
+                        shared.gradio['gh_branch_btn'] = gr.Button('🌿 Create Branch', size='sm')
+                        shared.gradio['gh_send_to_chat_btn'] = gr.Button('💬 Send to Chat', size='sm', variant='secondary')
+
+                    gr.HTML("<hr class='gh-divider'><div class='gh-step-label'>③ Pull Request</div>")
+                    shared.gradio['gh_pr_title'] = gr.Textbox(
+                        label='PR title',
+                        value='AI generated change',
+                        elem_id='gh-pr-title',
+                    )
+                    shared.gradio['gh_pr_btn'] = gr.Button('🚀 Push + Open PR', variant='primary', size='sm')
+
+                    gr.HTML("<hr class='gh-divider'>")
+                    shared.gradio['gh_status_html'] = gr.HTML(
+                        value="<div class='gh-status-bar gh-idle'>🔧 Not connected yet — fill in ① and click Connect</div>",
+                        elem_id='gh-status-html',
+                    )
+                    shared.gradio['gh_status'] = gr.Textbox(label='Status (raw)', interactive=False, visible=False)
+                    shared.gradio['gh_branch'] = gr.Textbox(label='Working branch', interactive=False, visible=False)
+                    shared.gradio['gh_task_file'] = gr.Textbox(label='Task file', interactive=False, visible=False)
+                    shared.gradio['gh_pr_url'] = gr.Textbox(label='PR URL', interactive=False, visible=False)
+                    with gr.Row():
+                        shared.gradio['gh_branch_display'] = gr.Textbox(label='🌿 Active branch', interactive=False, scale=2)
+                        shared.gradio['gh_pr_url_display'] = gr.Textbox(label='🔗 PR URL', interactive=False, scale=3)
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
@@ -761,24 +903,102 @@ def create_event_handlers():
 
     shared.gradio['chat_style'].change(chat.redraw_html, gradio(reload_arr), gradio('display'), show_progress=False)
 
+    # ── GitHub Agent: sidebar ────────────────────────────────────────────────
+
+    def _gh_connect_and_refresh(repo_path, base_branch, token):
+        status, repo_out = github_connect(repo_path, base_branch, token)
+        html = github_status_html(status, None, None)
+        return status, repo_out, html
+
     shared.gradio['gh_connect_btn'].click(
-        github_connect,
+        _gh_connect_and_refresh,
         gradio('gh_repo_path', 'gh_base_branch', 'gh_token'),
-        gradio('gh_status', 'gh_repo_path'),
+        gradio('gh_status', 'gh_repo_path', 'gh_status_html'),
         show_progress=False,
     )
+
+    def _gh_branch_and_refresh(task, mode, effort, repo_path, base_branch):
+        status, branch, task_file = github_create_branch(task, mode, effort, repo_path, base_branch)
+        html = github_status_html(status, branch, None)
+        return status, branch, task_file, html, branch
 
     shared.gradio['gh_branch_btn'].click(
-        github_create_branch,
+        _gh_branch_and_refresh,
         gradio('gh_task', 'mode', 'reasoning_effort', 'gh_repo_path', 'gh_base_branch'),
-        gradio('gh_status', 'gh_branch', 'gh_task_file'),
+        gradio('gh_status', 'gh_branch', 'gh_task_file', 'gh_status_html', 'gh_branch_display'),
         show_progress=False,
     )
 
+    # sidebar "Send to Chat" — copies sidebar task into main chat textbox
+    shared.gradio['gh_send_to_chat_btn'].click(
+        github_send_to_chat,
+        gradio('gh_status', 'gh_branch', 'gh_task', 'gh_pr_url'),
+        gradio('textbox'),
+        show_progress=False,
+    )
+
+    def _gh_pr_and_refresh(repo_path, branch, title, task):
+        status, pr_url = github_open_pr(repo_path, branch, title, task)
+        html = github_status_html(status, branch, pr_url)
+        return status, pr_url, html, pr_url
+
     shared.gradio['gh_pr_btn'].click(
-        github_open_pr,
+        _gh_pr_and_refresh,
         gradio('gh_repo_path', 'gh_branch', 'gh_pr_title', 'gh_task'),
-        gradio('gh_status', 'gh_pr_url'),
+        gradio('gh_status', 'gh_pr_url', 'gh_status_html', 'gh_pr_url_display'),
+        show_progress=False,
+    )
+
+    # ── GitHub Agent: main window panel ─────────────────────────────────────
+
+    # Toggle panel open/close
+    shared.gradio['gh_toggle_btn'].click(
+        lambda visible: gr.update(visible=not visible),
+        gradio('gh_panel_row'),
+        gradio('gh_panel_row'),
+        show_progress=False,
+    )
+
+    # Close button inside panel
+    shared.gradio['gh_panel_close_btn'].click(
+        lambda: gr.update(visible=False),
+        None,
+        gradio('gh_panel_row'),
+        show_progress=False,
+    )
+
+    # Panel "Create Branch" — syncs task from panel into sidebar task field too
+    def _gh_panel_branch(task_panel, mode, effort, repo_path, base_branch):
+        status, branch, task_file = github_create_branch(task_panel, mode, effort, repo_path, base_branch)
+        html = github_status_html(status, branch, None)
+        return status, branch, task_file, html, branch, branch, task_panel
+
+    shared.gradio['gh_panel_branch_btn'].click(
+        _gh_panel_branch,
+        gradio('gh_task_panel', 'mode', 'reasoning_effort', 'gh_repo_path', 'gh_base_branch'),
+        gradio('gh_status', 'gh_branch', 'gh_task_file',
+               'gh_panel_status', 'gh_branch_panel', 'gh_branch_display', 'gh_task'),
+        show_progress=False,
+    )
+
+    # Panel "Push + PR"
+    def _gh_panel_pr(repo_path, branch, title_panel, task_panel):
+        status, pr_url = github_open_pr(repo_path, branch, title_panel, task_panel)
+        html = github_status_html(status, branch, pr_url)
+        return status, pr_url, html, pr_url, pr_url
+
+    shared.gradio['gh_panel_pr_btn'].click(
+        _gh_panel_pr,
+        gradio('gh_repo_path', 'gh_branch', 'gh_pr_title_panel', 'gh_task_panel'),
+        gradio('gh_status', 'gh_pr_url', 'gh_panel_status', 'gh_pr_url_display', 'gh_pr_url'),
+        show_progress=False,
+    )
+
+    # Panel "Send Status to Chat" — formats current state and puts it in the chat box
+    shared.gradio['gh_panel_send_btn'].click(
+        github_send_to_chat,
+        gradio('gh_status', 'gh_branch', 'gh_task_panel', 'gh_pr_url'),
+        gradio('textbox'),
         show_progress=False,
     )
 
