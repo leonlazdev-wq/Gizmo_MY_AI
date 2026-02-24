@@ -46,6 +46,12 @@ DEFAULT_STYLES = {
         "Use bullet points, keep titles under 8 words, body under 40 words per slide. "
         "Always suggest relevant visuals or images for each slide."
     ),
+    "Lesson-Tab AI": (
+        "You are a lesson assistant agent. Convert teacher instructions, class materials, or student requests into short interactive lessons. "
+        "Always provide: brief lesson bullets, a short quiz, visual aid ideas, and a compact slide-export mapping. "
+        "Support multilingual learners, include accessibility options, and only use user-authorized files. "
+        "When asked for lesson content, return strict JSON with keys: title, language, bullets, tts_audio_url, images, quiz, slide_export."
+    ),
 }
 
 
@@ -116,6 +122,65 @@ def load_style_for_edit(name: str) -> tuple:
     styles = _load_styles()
     prompt = styles.get(name, "")
     return name, prompt
+
+
+def build_lesson_pack(topic: str, level: str, language: str, duration_min: int, goals: str, include_quiz: bool, include_visuals: bool) -> tuple:
+    topic = (topic or '').strip()
+    if not topic:
+        return "❌ Enter a lesson topic first.", ""
+
+    language = (language or 'auto').strip()
+    level = (level or 'mixed').strip()
+    goals = (goals or '').strip()
+    duration_min = int(duration_min or 10)
+
+    lesson_json = {
+        "title": f"{topic} — mini lesson",
+        "language": language,
+        "audience": level,
+        "duration_min": duration_min,
+        "goals": [g.strip() for g in goals.split("\n") if g.strip()] or [f"Understand the basics of {topic}"],
+        "bullets": [
+            f"Define {topic} in simple words.",
+            f"Give one real-life example of {topic}.",
+            f"Explain a common mistake about {topic}."
+        ],
+        "tts_audio_url": "",
+        "images": [
+            {
+                "thumb_url": "",
+                "annotated_url": "",
+                "source": ""
+            }
+        ] if include_visuals else [],
+        "quiz": [
+            {
+                "q": f"What is the best description of {topic}?",
+                "choices": ["A definition", "A random guess", "An unrelated idea"],
+                "answer_index": 0
+            }
+        ] if include_quiz else [],
+        "slide_export": [
+            {
+                "slide_title": f"What is {topic}?",
+                "slide_bullets": [
+                    f"Simple definition of {topic}",
+                    "One practical example",
+                    "Key takeaway"
+                ]
+            }
+        ]
+    }
+
+    lesson_prompt = (
+        f"Create a {duration_min}-minute interactive lesson about '{topic}'.\n"
+        f"Audience level: {level}.\n"
+        f"Language: {language}.\n"
+        f"Goals:\n{goals if goals else '- Explain basics clearly'}\n\n"
+        "Return strict JSON with keys: title, language, bullets, tts_audio_url, images, quiz, slide_export."
+    )
+
+    return "✅ Lesson pack generated. You can copy this into chat.", lesson_prompt + "\n\n" + json.dumps(lesson_json, ensure_ascii=False, indent=2)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -486,6 +551,57 @@ window.refreshConnectorStatus = function() {{
     }}
 }};
 
+// ── TTS helper (browser speech synthesis) ─────────────────────
+window.gizmoPickVoice = function(preference) {{
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+
+    const prefer = (preference || '').toLowerCase();
+    const robotHints = ['google us english', 'microsoft', 'samantha', 'david', 'zira'];
+
+    if (prefer && prefer !== 'friendly robot (auto)') {{
+        const exact = voices.find(v => v.name.toLowerCase().includes(prefer));
+        if (exact) return exact;
+    }}
+
+    for (const hint of robotHints) {{
+        const v = voices.find(voice => voice.lang.toLowerCase().startsWith('en') && voice.name.toLowerCase().includes(hint));
+        if (v) return v;
+    }}
+
+    return voices.find(v => v.lang.toLowerCase().startsWith('en')) || voices[0];
+}};
+
+window.gizmoSpeak = function(text, preference, rate, pitch) {{
+    const cleanText = (text || '').trim();
+    if (!cleanText) return '❌ Nothing to speak.';
+
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(cleanText);
+    const voice = window.gizmoPickVoice(preference);
+    if (voice) u.voice = voice;
+    u.rate = Number(rate || 1);
+    u.pitch = Number(pitch || 1.05);
+    u.volume = 1;
+    window.speechSynthesis.speak(u);
+    return '✅ Speaking with voice: ' + (voice ? voice.name : 'default browser voice');
+}};
+
+window.gizmoSpeakLastAi = function(preference, rate, pitch) {{
+    const msgs = document.querySelectorAll('.message.bot, [data-testid="bot"]');
+    const last = msgs[msgs.length - 1];
+    const text = last ? last.innerText : '';
+    return window.gizmoSpeak(text, preference, rate, pitch);
+}};
+
+window.gizmoStopSpeaking = function() {{
+    window.speechSynthesis.cancel();
+    return '⏹ Speech stopped.';
+}};
+
+// Preload voice list (some browsers load asynchronously)
+window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+
 // ── Init on load ───────────────────────────────────────────────
 if (document.readyState === 'loading') {{
     document.addEventListener('DOMContentLoaded', initGizmoToolbar);
@@ -507,7 +623,7 @@ setTimeout(initGizmoToolbar, 5000);
 def ui():
     gr.Markdown("## 🛠 Gizmo Toolbar")
     gr.Markdown(
-        "Manage **styles** (how the AI behaves) and view **connector status**. "
+        "Manage **styles**, build **student lessons**, and view **connector status**. "
         "The floating **＋ button** (bottom-left) gives you quick access to all of this from any tab."
     )
 
@@ -601,6 +717,70 @@ def ui():
             inputs=edit_dropdown,
             outputs=[delete_result, style_dropdown]
         ).then(fn=lambda: gr.update(choices=_style_names()), outputs=edit_dropdown)
+
+    # ── Lesson Studio ────────────────────────────────────────────────────────
+    with gr.Tab("📚 Lesson Studio"):
+        gr.Markdown("### Build lessons faster for students")
+        gr.Markdown("Create a ready-to-send lesson request, then use built-in browser TTS to read results aloud.")
+
+        with gr.Row():
+            lesson_topic = gr.Textbox(label="Lesson topic", placeholder="Photosynthesis / Fractions / World War 2")
+            lesson_level = gr.Dropdown(label="Student level", choices=["elementary", "middle school", "high school", "college", "mixed"], value="middle school")
+            lesson_language = gr.Textbox(label="Language", value="auto", placeholder="auto / en / es / fr")
+            lesson_duration = gr.Slider(label="Target lesson minutes", minimum=5, maximum=45, step=1, value=12)
+
+        lesson_goals = gr.Textbox(label="Learning goals (one per line)", lines=4, placeholder="Understand core idea\nSee real-life example\nCheck understanding with quiz")
+        with gr.Row():
+            lesson_include_quiz = gr.Checkbox(label="Include quiz", value=True)
+            lesson_include_visuals = gr.Checkbox(label="Include visuals/annotated image placeholders", value=True)
+
+        lesson_build_btn = gr.Button("🧠 Build lesson pack", variant="primary")
+        lesson_status = gr.Textbox(label="Lesson builder status", interactive=False)
+        lesson_output = gr.Textbox(label="Lesson request + JSON payload", lines=16, elem_classes=['add_scrollbar'])
+
+        lesson_build_btn.click(
+            fn=build_lesson_pack,
+            inputs=[lesson_topic, lesson_level, lesson_language, lesson_duration, lesson_goals, lesson_include_quiz, lesson_include_visuals],
+            outputs=[lesson_status, lesson_output]
+        )
+
+        gr.Markdown("### 🔊 Read lesson text aloud (friendly robot voice)")
+        tts_text = gr.Textbox(label="Text to speak", lines=5, placeholder="Paste AI output here, or click 'Speak last AI reply'")
+        with gr.Row():
+            tts_voice = gr.Dropdown(
+                label="Voice",
+                choices=["Friendly Robot (auto)", "Google US English", "Microsoft", "Samantha", "David", "Zira"],
+                value="Friendly Robot (auto)"
+            )
+            tts_rate = gr.Slider(label="Speaking rate", minimum=0.7, maximum=1.4, step=0.05, value=1.0)
+            tts_pitch = gr.Slider(label="Voice pitch", minimum=0.7, maximum=1.5, step=0.05, value=1.05)
+
+        with gr.Row():
+            tts_speak_btn = gr.Button("▶ Speak text")
+            tts_speak_last_btn = gr.Button("🗣 Speak last AI reply")
+            tts_stop_btn = gr.Button("⏹ Stop")
+        tts_status = gr.Textbox(label="Audio status", interactive=False)
+
+        tts_speak_btn.click(
+            fn=lambda: None,
+            inputs=[tts_text, tts_voice, tts_rate, tts_pitch],
+            outputs=[tts_status],
+            js="(text, voice, rate, pitch) => window.gizmoSpeak(text, voice, rate, pitch)"
+        )
+
+        tts_speak_last_btn.click(
+            fn=lambda: None,
+            inputs=[tts_voice, tts_rate, tts_pitch],
+            outputs=[tts_status],
+            js="(voice, rate, pitch) => window.gizmoSpeakLastAi(voice, rate, pitch)"
+        )
+
+        tts_stop_btn.click(
+            fn=lambda: None,
+            inputs=[],
+            outputs=[tts_status],
+            js="() => window.gizmoStopSpeaking()"
+        )
 
     # ── Connectors Overview ───────────────────────────────────────────────────
     with gr.Tab("🔗 Connectors"):

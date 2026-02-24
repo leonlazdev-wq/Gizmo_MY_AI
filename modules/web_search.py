@@ -170,3 +170,30 @@ def add_web_search_attachments(history, row_idx, user_message, search_query, sta
 
     except Exception as e:
         logger.error(f"Error in web search: {e}")
+
+
+
+def search_with_providers(query, provider='duckduckgo', max_results=5):
+    """Multi-provider web search facade.
+
+    Returns list of dicts with title/url/snippet.
+    """
+    provider = (provider or 'duckduckgo').lower()
+    query = (query or '').strip()
+    if not query:
+        return []
+
+    if provider in {'duckduckgo', 'ddg'}:
+        try:
+            from duckduckgo_search import DDGS
+            out = []
+            with DDGS() as ddgs:
+                for r in ddgs.text(query, max_results=max_results):
+                    out.append({'title': r.get('title', ''), 'url': r.get('href', ''), 'snippet': r.get('body', '')})
+            return out
+        except Exception:
+            pass
+
+    # fallback to existing scraper based flow
+    rows = perform_web_search(query, num_pages=max_results)
+    return [{'title': r.get('title', ''), 'url': r.get('url', ''), 'snippet': (r.get('content', '') or '')[:300]} for r in rows]

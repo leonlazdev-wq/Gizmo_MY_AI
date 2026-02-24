@@ -38,6 +38,30 @@ from modules.utils import resolve_model_path
 llamacpp_valid_cache_types = {"fp16", "q8_0", "q4_0"}
 
 
+def _unwrap_gradio_value(value):
+    """Handle Gradio-style payloads that may wrap values in dicts."""
+    if isinstance(value, dict):
+        for key in ("value", "selected", "label"):
+            if key in value:
+                return value[key]
+    return value
+
+
+def _to_int(value, default=0):
+    value = _unwrap_gradio_value(value)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_str(value, default=""):
+    value = _unwrap_gradio_value(value)
+    if value is None:
+        return default
+    return str(value)
+
+
 class LlamaServer:
     def __init__(self, model_path, server_path=None):
         """
@@ -341,22 +365,22 @@ class LlamaServer:
 
         # --- GPU auto-detection ---
         has_gpu = torch.cuda.is_available()
-        gpu_layers = shared.args.gpu_layers if has_gpu else 0
+        gpu_layers = _to_int(shared.args.gpu_layers, 0) if has_gpu else 0
 
         if not has_gpu:
             logger.warning("No GPU detected → running llama.cpp in CPU-only mode")
             # Force CPU settings
-            if shared.args.gpu_layers > 0:
-                logger.info(f"Overriding gpu_layers from {shared.args.gpu_layers} to 0 (CPU mode)")
+            if _to_int(shared.args.gpu_layers, 0) > 0:
+                logger.info(f"Overriding gpu_layers from {_to_int(shared.args.gpu_layers, 0)} to 0 (CPU mode)")
                 gpu_layers = 0
 
         # Build base command
         cmd = [
             str(self.server_path),
             "--model", str(self.model_path),
-            "--ctx-size", str(shared.args.ctx_size),
-            "--batch-size", str(shared.args.batch_size),
-            "--ubatch-size", str(shared.args.ubatch_size),
+            "--ctx-size", str(_to_int(shared.args.ctx_size, 4096)),
+            "--batch-size", str(_to_int(shared.args.batch_size, 512)),
+            "--ubatch-size", str(_to_int(shared.args.ubatch_size, 512)),
             "--port", str(self.port),
             "--no-webui",
         ]
@@ -371,10 +395,10 @@ class LlamaServer:
                 pass
 
         # Optional performance flags
-        if shared.args.threads > 0:
-            cmd += ["--threads", str(shared.args.threads)]
-        if shared.args.threads_batch > 0:
-            cmd += ["--threads-batch", str(shared.args.threads_batch)]
+        if _to_int(shared.args.threads, 0) > 0:
+            cmd += ["--threads", str(_to_int(shared.args.threads, 0))]
+        if _to_int(shared.args.threads_batch, 0) > 0:
+            cmd += ["--threads-batch", str(_to_int(shared.args.threads_batch, 0))]
         if shared.args.cpu_moe:
             cmd.append("--cpu-moe")
         if shared.args.no_mmap:
@@ -399,13 +423,26 @@ class LlamaServer:
             cmd += ["--split-mode", "row"]
 
         # Cache type
-        cache_type = "fp16"
-        if shared.args.cache_type in llamacpp_valid_cache_types:
-            cmd += [
-                "--cache-type-k", shared.args.cache_type,
-                "--cache-type-v", shared.args.cache_type
-            ]
-            cache_type = shared.args.cache_type
+        cache_type = "f16"
+        cache_type_aliases = {
+            "fp16": "f16",
+            "f16": "f16",
+            "bf16": "bf16",
+            "q8_0": "q8_0",
+            "q4_0": "q4_0",
+            "q4_1": "q4_1",
+            "iq4_nl": "iq4_nl",
+            "q5_0": "q5_0",
+            "q5_1": "q5_1",
+            "f32": "f32",
+        }
+        raw_cache_type = _to_str(shared.args.cache_type, "f16").lower()
+        selected_cache_type = cache_type_aliases.get(raw_cache_type, "f16")
+        cmd += [
+            "--cache-type-k", selected_cache_type,
+            "--cache-type-v", selected_cache_type
+        ]
+        cache_type = selected_cache_type
 
         # Rope scaling
         if shared.args.compress_pos_emb != 1:
@@ -454,7 +491,7 @@ class LlamaServer:
         # Extra flags
         if shared.args.extra_flags:
             # Clean up the input
-            extra_flags = shared.args.extra_flags.strip()
+            extra_flags = _to_str(shared.args.extra_flags, "").strip()
             if extra_flags.startswith('"') and extra_flags.endswith('"'):
                 extra_flags = extra_flags[1:-1].strip()
             elif extra_flags.startswith("'") and extra_flags.endswith("'"):

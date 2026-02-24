@@ -1,0 +1,7 @@
+{
+  "name": "sample_plugin",
+  "title": "Sample Plugin",
+  "description": "Test plugin",
+  "rating": 4.5,
+  "scopes": ["tool:local"]
+}
