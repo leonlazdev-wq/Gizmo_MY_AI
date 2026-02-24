@@ -390,7 +390,7 @@ class LlamaServer:
             cmd += ["--gpu-layers", str(gpu_layers)]
             # Flash attention only works on GPU
             try:
-                cmd += ["--flash-attn"]
+                cmd += ["--flash-attn", "on"]
             except:
                 pass
 
