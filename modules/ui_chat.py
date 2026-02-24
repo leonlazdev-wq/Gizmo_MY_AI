@@ -338,6 +338,18 @@ def create_event_handlers():
     # Morph HTML updates instead of updating everything
     shared.gradio['display'].change(None, gradio('display'), None, js="(data) => handleMorphdomUpdate(data)")
 
+    def _get_any(*keys):
+        for key in keys:
+            if key in shared.gradio:
+                return shared.gradio[key]
+        return None
+
+    def _bind_click(key_options, fn, input_keys, output_keys):
+        target = _get_any(*key_options)
+        if target is None:
+            return
+        target.click(fn, gradio(*input_keys) if input_keys else None, gradio(*output_keys) if output_keys else None, show_progress=False)
+
     shared.gradio['Generate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         lambda x: x, gradio('textbox'), gradio('Chat input'), show_progress=False).then(
