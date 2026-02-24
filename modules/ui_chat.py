@@ -371,7 +371,6 @@ def create_ui():
                 with gr.Accordion('🔧 GitHub Agent (Beta)', open=False):
                     gh_defaults = _load_github_config()
                     shared.gradio['gh_repo_path'] = gr.Textbox(label='Repository path', value=gh_defaults.get('repo_path', '.'))
- main
                     shared.gradio['gh_base_branch'] = gr.Textbox(label='Base branch', value=gh_defaults.get('base_branch', 'main'))
                     shared.gradio['gh_token'] = gr.Textbox(label='GitHub token (optional, for gh auth)', type='password', value=gh_defaults.get('token', ''))
                     shared.gradio['gh_task'] = gr.Textbox(label='Task for AI coding agent', lines=4, placeholder='Describe the code change to implement...')
@@ -730,7 +729,6 @@ def create_event_handlers():
         github_connect,
         gradio('gh_repo_path', 'gh_base_branch', 'gh_token'),
         gradio('gh_status', 'gh_repo_path'),
- main
         show_progress=False,
     )
 
