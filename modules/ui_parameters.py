@@ -3,7 +3,25 @@ from pathlib import Path
 import gradio as gr
 
 from modules import loaders, presets, shared, ui, ui_chat, utils
+from modules.auto_tuner import ParameterAutoTuner, format_profile
 from modules.utils import gradio
+
+
+AUTO_TUNER = ParameterAutoTuner()
+
+
+def suggest_profile(goal):
+    profile = AUTO_TUNER.suggest_parameters(goal)
+    params = profile.get("params", {})
+    return (
+        format_profile(profile),
+        params.get("temperature", gr.update()),
+        params.get("top_p", gr.update()),
+        params.get("top_k", gr.update()),
+        params.get("repetition_penalty", gr.update()),
+        params.get("min_p", gr.update()),
+        params.get("max_new_tokens", gr.update()),
+    )
 
 
 def create_ui():
@@ -12,6 +30,14 @@ def create_ui():
         with gr.Tab("Generation"):
             with gr.Row():
                 with gr.Column():
+                    with gr.Accordion('🎯 Auto-Tune Parameters', open=False):
+                        shared.gradio['auto_tune_goal'] = gr.Textbox(label='What do you want to do?', placeholder='e.g. write creative fiction or debug Python code', lines=2)
+                        with gr.Row():
+                            shared.gradio['auto_tune_suggest'] = gr.Button('✨ Get Suggestions', variant='primary')
+                            shared.gradio['auto_tune_profiles'] = gr.Button('📊 View All Profiles')
+                        shared.gradio['auto_tune_output'] = gr.Markdown(value='')
+                        shared.gradio['auto_tune_profiles_table'] = gr.HTML(value='')
+
                     with gr.Row():
                         shared.gradio['preset_menu'] = gr.Dropdown(choices=utils.get_available_presets(), value=shared.settings['preset'], label='Preset', elem_classes='slim-dropdown')
                         ui.create_refresh_button(shared.gradio['preset_menu'], lambda: None, lambda: {'choices': utils.get_available_presets()}, 'refresh-button', interactive=not mu)
@@ -123,6 +149,19 @@ def create_event_handlers():
 
     shared.gradio['grammar_file'].change(load_grammar, gradio('grammar_file'), gradio('grammar_string'), show_progress=False)
     shared.gradio['dynamic_temperature'].change(lambda x: [gr.update(visible=x)] * 3, gradio('dynamic_temperature'), gradio('dynatemp_low', 'dynatemp_high', 'dynatemp_exponent'), show_progress=False)
+
+    shared.gradio['auto_tune_suggest'].click(
+        suggest_profile,
+        gradio('auto_tune_goal'),
+        gradio('auto_tune_output', 'temperature', 'top_p', 'top_k', 'repetition_penalty', 'min_p', 'max_new_tokens'),
+        show_progress=False,
+    )
+    shared.gradio['auto_tune_profiles'].click(
+        lambda: AUTO_TUNER.compare_profiles(),
+        None,
+        gradio('auto_tune_profiles_table'),
+        show_progress=False,
+    )
 
 
 def get_truncation_length():

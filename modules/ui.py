@@ -28,8 +28,18 @@ with open(Path(__file__).resolve().parent / '../css/katex/katex.min.css', 'r', e
     css += f.read()
 with open(Path(__file__).resolve().parent / '../css/highlightjs/highlightjs-copy.min.css', 'r', encoding='utf-8') as f:
     css += f.read()
+
+enhanced_css_path = Path(__file__).resolve().parent / '../css/enhanced.css'
+if enhanced_css_path.exists():
+    with open(enhanced_css_path, 'r', encoding='utf-8') as f:
+        css += f.read()
 with open(Path(__file__).resolve().parent / '../js/main.js', 'r', encoding='utf-8') as f:
     js = f.read()
+
+enhanced_js_path = Path(__file__).resolve().parent / '../js/enhanced.js'
+if enhanced_js_path.exists():
+    with open(enhanced_js_path, 'r', encoding='utf-8') as f:
+        js += '\n' + f.read()
 with open(Path(__file__).resolve().parent / '../js/global_scope_js.js', 'r', encoding='utf-8') as f:
     global_scope_js = f.read()
 with open(Path(__file__).resolve().parent / '../js/save_files.js', 'r', encoding='utf-8') as f:
