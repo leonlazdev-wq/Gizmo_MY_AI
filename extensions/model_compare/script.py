@@ -1,8 +1,3 @@
-params = {
-    "display_name": "Model Comparison",
-    "is_tab": True,
-}
-
 import html
 import time
 from typing import Dict, List
@@ -15,20 +10,12 @@ from modules.text_generation import generate_reply
 
 
 class ModelComparison:
-<<<<<<< codex/add-smart-chat-templates-library-dsisqm
     def _generate_with_loaded_model(self, prompt: str, params: Dict) -> str:
-=======
-    def generate_with_model(self, model_name: str, prompt: str, params: Dict) -> Dict:
-        start = time.time()
-        unload_model()
-        shared.model, shared.tokenizer = load_model(model_name, None)
->>>>>>> main
         state = dict(shared.settings)
         state.update(params)
         result = ""
         for chunk in generate_reply(prompt, state, stopping_strings=[], is_chat=False, for_ui=False):
             result = chunk
-<<<<<<< codex/add-smart-chat-templates-library-dsisqm
         return result
 
     def generate_with_model(self, model_name: str, prompt: str, params: Dict) -> Dict:
@@ -42,6 +29,7 @@ class ModelComparison:
         except Exception as exc:
             response = ""
             error = str(exc)
+
         elapsed = max(0.001, time.time() - start)
         tokens = len((response or "").split())
         return {
@@ -61,29 +49,12 @@ class ModelComparison:
 
         params = {"temperature": temperature, "max_new_tokens": int(max_tokens)}
         original_model = shared.model_name
-=======
-        elapsed = max(0.001, time.time() - start)
-        tokens = len((result or "").split())
-        return {
-            "model": model_name,
-            "response": result,
-            "time": elapsed,
-            "tokens": tokens,
-            "tokens_per_sec": tokens / elapsed,
-        }
-
-    def compare_models(self, prompt: str, models: List[str], temperature: float, max_tokens: int):
-        if len(models) < 2:
-            return "<p>Select at least 2 models.</p>", []
-        params = {"temperature": temperature, "max_new_tokens": int(max_tokens)}
-        original = shared.model_name
->>>>>>> main
         results = []
+
         try:
             for model in models:
                 results.append(self.generate_with_model(model, prompt, params))
         finally:
-<<<<<<< codex/add-smart-chat-templates-library-dsisqm
             if original_model and original_model != 'None':
                 try:
                     unload_model()
@@ -102,22 +73,6 @@ class ModelComparison:
         html_out.append("</div>")
         table = [[r['model'], round(r['time'], 2), round(r['tokens_per_sec'], 2), bool(r['error'])] for r in results]
         return "".join(html_out), table
-=======
-            if original and original != 'None':
-                unload_model()
-                shared.model, shared.tokenizer = load_model(original, None)
-
-        html_out = ["<div style='background:#1e1e1e;padding:20px;border-radius:10px'><h3 style='color:#4CAF50'>🔬 Model Comparison Results</h3>"]
-        for r in results:
-            html_out.append(
-                f"<div style='margin:10px 0;border-left:4px solid #2196F3;padding-left:12px'><h4 style='color:#2196F3'>{html.escape(r['model'])}</h4>"
-                f"<div style='font-size:12px;color:#aaa'>⏱️ {r['time']:.2f}s • ⚡ {r['tokens_per_sec']:.1f} tok/s</div>"
-                f"<div style='margin-top:8px'>{html.escape(r['response'] or '')}</div></div>"
-            )
-        html_out.append("</div>")
-        chart = [[r['model'], r['tokens_per_sec']] for r in results]
-        return "".join(html_out), chart
->>>>>>> main
 
 
 def ui():
@@ -132,18 +87,20 @@ def ui():
             compare_btn = gr.Button("▶️ Run Comparison", variant="primary")
         with gr.Column(scale=3):
             comparison_output = gr.HTML(value="<p>Results will appear here...</p>")
-<<<<<<< codex/add-smart-chat-templates-library-dsisqm
-            performance_table = gr.Dataframe(headers=["model", "time_s", "tok_s", "error"], datatype=["str", "number", "number", "bool"], row_count=4)
-=======
-            performance_chart = gr.BarPlot(x="model", y="tok_s", title="Tokens/Second", value=[])
->>>>>>> main
+            performance_table = gr.Dataframe(
+                headers=["model", "time_s", "tok_s", "error"],
+                datatype=["str", "number", "number", "bool"],
+                row_count=4,
+            )
 
     compare_btn.click(
         lambda p, m, t, mx: comp.compare_models(p, m, t, mx),
         [comparison_prompt, model_selection, temp, max_tokens],
-<<<<<<< codex/add-smart-chat-templates-library-dsisqm
         [comparison_output, performance_table],
-=======
-        [comparison_output, performance_chart],
->>>>>>> main
     )
+
+
+params = {
+    "display_name": "Model Comparison",
+    "is_tab": True,
+}

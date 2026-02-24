@@ -19,10 +19,10 @@ def create_ui() -> None:
     shared.gradio['launch_session_id'] = gr.Textbox(value='default_session', visible=False)
     shared.gradio['launch_demo_input'] = gr.Textbox(value='Explain photosynthesis for grade 7', visible=False)
 
-    shared.gradio['run_demo_cta'] = gr.Button('▶ Run demo', elem_id='run-demo-cta')
-    shared.gradio['feedback_cta_open'] = gr.Button('✎ Feedback', elem_id='feedback-cta')
+    shared.gradio['run_demo_cta'] = gr.Button('▶ Run demo', elem_id='run-demo-cta', visible=False)
+    shared.gradio['feedback_cta_open'] = gr.Button('✎ Feedback', elem_id='feedback-cta', visible=False)
 
-    with gr.Group(visible=True, elem_id='whats-new-modal') as shared.gradio['whats_new_modal']:
+    with gr.Group(visible=False, elem_id='whats-new-modal') as shared.gradio['whats_new_modal']:
         gr.Markdown("### ✨ What's new in Gizmo\n- Guided tour\n- One-click demo workflow\n- Developer tools (A/B, diff, snapshots)\n- Theme editor and feature flags")
         with gr.Row():
             shared.gradio['start_tour_btn'] = gr.Button('Start Tour')
@@ -31,7 +31,7 @@ def create_ui() -> None:
             shared.gradio['close_whats_new_btn'] = gr.Button('Close')
 
     shared.gradio['tour_overlay'] = gr.HTML('', elem_id='tour-overlay')
-    shared.gradio['launch_status'] = gr.Textbox(label='Launch status', interactive=False)
+    shared.gradio['launch_status'] = gr.Textbox(label='Launch status', interactive=False, visible=False)
 
 
 def create_event_handlers() -> None:
