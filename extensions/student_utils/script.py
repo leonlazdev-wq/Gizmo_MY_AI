@@ -284,7 +284,7 @@ def switch_persona(persona_name, system_prompt):
         return "⚠️ Could not switch automatically. Copy the prompt below.", persona_name, system_prompt, False
     except Exception as e:
         return f"⚠️ Could not switch automatically ({e}). Copy the prompt below.", persona_name, system_prompt, False
-        return f"✅ Switched to: {persona_name}", persona_name, ""
+      return f"✅ Switched to: {persona_name}", persona_name, ""
     except Exception as e:
         msg = (
             f"⚠️ Could not switch automatically ({e}). Copy and paste prompt manually."
@@ -309,7 +309,7 @@ def save_notes(text):
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text or "", encoding="utf-8")
- main
+main
             return f"✅ Saved at {datetime.now().strftime('%H:%M:%S')}", True
         except Exception:
             continue

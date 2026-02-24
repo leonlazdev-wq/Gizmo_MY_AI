@@ -1,8 +1,3 @@
-params = {
-    "display_name": "Model Comparison",
-    "is_tab": True,
-}
-
 import html
 import time
 from typing import Dict, List
@@ -103,3 +98,9 @@ def ui():
         [comparison_prompt, model_selection, temp, max_tokens],
         [comparison_output, performance_table],
     )
+
+
+params = {
+    "display_name": "Model Comparison",
+    "is_tab": True,
+}
