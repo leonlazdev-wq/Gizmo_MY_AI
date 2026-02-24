@@ -853,8 +853,6 @@ for f in flags:
         sys.argv.append(f)
 
 print("[WRAPPER v3.5] {mode_label} | {model_desc} | ＋button | Google Workspace | Dual Model")
- main
- main
 try:
     import matplotlib; matplotlib.use('Agg', force=True)
 except Exception: pass
