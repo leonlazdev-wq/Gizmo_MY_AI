@@ -90,11 +90,11 @@ def _github_config_path():
 def _load_github_config():
     p = _github_config_path()
     if not p.exists():
-        return {"repo_url": "", "repo_path": ".", "base_branch": "main", "token": ""}
+        return {"repo_path": ".", "base_branch": "main", "token": ""}
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
-        return {"repo_url": "", "repo_path": ".", "base_branch": "main", "token": ""}
+        return {"repo_path": ".", "base_branch": "main", "token": ""}
 
 
 def _save_github_config(cfg):
@@ -106,32 +106,16 @@ def _run_git(args, cwd):
     return proc.returncode, (proc.stdout or "").strip(), (proc.stderr or "").strip()
 
 
-def github_connect(repo_url, repo_path, base_branch, token):
-    cfg = {
-        "repo_url": (repo_url or "").strip(),
-        "repo_path": (repo_path or ".").strip() or ".",
-        "base_branch": (base_branch or "main").strip() or "main",
-        "token": (token or "").strip(),
-    }
+def github_connect(repo_path, base_branch, token):
+    cfg = {"repo_path": (repo_path or ".").strip() or ".", "base_branch": (base_branch or "main").strip() or "main", "token": (token or "").strip()}
     repo = Path(cfg["repo_path"]).resolve()
-
-    if cfg["repo_url"] and (not repo.exists() or not (repo / ".git").exists()):
-        repo.parent.mkdir(parents=True, exist_ok=True)
-        clone_url = cfg["repo_url"]
-        if cfg["token"] and clone_url.startswith("https://") and "@" not in clone_url:
-            clone_url = "https://" + cfg["token"] + "@" + clone_url[len("https://"):]
-        proc = subprocess.run(["git", "clone", clone_url, str(repo)], text=True, capture_output=True)
-        if proc.returncode != 0:
-            return f"❌ Clone failed: {(proc.stderr or proc.stdout).strip()}", "", ""
-
     if not repo.exists() or not (repo / ".git").exists():
-        return "❌ Invalid repository path (missing .git directory).", "", ""
-
+        return "❌ Invalid repository path (missing .git directory).", ""
     code, out, err = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo)
     if code != 0:
-        return f"❌ Git repo check failed: {err or out}", "", ""
+        return f"❌ Git repo check failed: {err or out}", ""
     _save_github_config(cfg)
-    return f"✅ Connected to {repo} (current branch: {out})", str(repo), cfg.get("repo_url", "")
+    return f"✅ Connected to {repo} (current branch: {out})", str(repo)
 
 
 def github_create_branch(task_text, mode, thinking, repo_path, base_branch):
@@ -182,111 +166,6 @@ def github_open_pr(repo_path, branch, title, body):
         return f"⚠️ Branch pushed, but PR creation failed: {(proc.stderr or proc.stdout).strip()}", ""
     pr_url = (proc.stdout or "").strip().splitlines()[-1] if (proc.stdout or "").strip() else ""
     return "✅ Pull request created.", pr_url
-
-
-def github_repo_health(repo_path):
-    repo = Path((repo_path or '.').strip() or '.').resolve()
-    if not repo.exists() or not (repo / '.git').exists():
-        return "❌ Invalid repository path.", []
-
-    def _safe_git(args):
-        code, out, err = _run_git(args, repo)
-        return out if code == 0 else (err or out)
-
-    branch = _safe_git(["rev-parse", "--abbrev-ref", "HEAD"])
-    remote = _safe_git(["remote", "get-url", "origin"])
-    ahead_behind = _safe_git(["status", "--porcelain=v1", "--branch"]).splitlines()[:2]
-    changed = _safe_git(["status", "--short"]).splitlines()
-    gh_ready = subprocess.run(["bash", "-lc", "command -v gh"], text=True, capture_output=True).returncode == 0
-
-    summary = [
-        f"✅ Repo: {repo}",
-        f"🌿 Branch: {branch}",
-        f"🔗 Origin: {remote}",
-        f"🧰 GitHub CLI: {'available' if gh_ready else 'not found'}",
-    ]
-    if ahead_behind:
-        summary.extend([f"📈 {line}" for line in ahead_behind])
-    if changed:
-        summary.append(f"📝 Changed files: {len(changed)}")
-
-    table = [[line[:2].strip() or '--', line[3:]] for line in changed[:200]]
-    return "\n".join(summary), table
-
-
-def github_create_multi_agent_tasks(repo_path, base_branch, task_text, ai_count, models_csv, strategy):
-    repo = Path((repo_path or '.').strip() or '.').resolve()
-    if not repo.exists() or not (repo / '.git').exists():
-        return "❌ Invalid repository path.", ""
-    if not (task_text or '').strip():
-        return "❌ Task is required.", ""
-
-    count = max(1, min(8, int(ai_count or 1)))
-    model_list = [m.strip() for m in (models_csv or '').split(',') if m.strip()]
-    if not model_list:
-        model_list = [shared.settings.get('model', 'current-model')]
-
-    tasks_dir = repo / 'user_data' / 'github_agent_tasks'
-    tasks_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    board = tasks_dir / f'team_board_{stamp}.md'
-
-    lines = [
-        '# Multi-AI Coding Board',
-        '',
-        f'- Base branch: {base_branch or "main"}',
-        f'- Strategy: {strategy}',
-        f'- Agents: {count}',
-        f'- Models: {", ".join(model_list)}',
-        '',
-        '## Objective',
-        task_text.strip(),
-        '',
-        '## Agent Assignments',
-    ]
-
-    for i in range(count):
-        model = model_list[i % len(model_list)]
-        role = ['Planner', 'Implementer', 'Reviewer', 'Tester', 'Security', 'Docs', 'Performance', 'Release'][i % 8]
-        lines.extend([
-            f'### Agent {i+1} — {role}',
-            f'- Model: {model}',
-            f'- Deliverable: {role} update for objective',
-            f'- Branch suggestion: gizmo/{role.lower()}-{stamp}',
-            '',
-        ])
-
-    board.write_text("\n".join(lines), encoding='utf-8')
-    return f"✅ Created multi-AI task board with {count} agents.", str(board)
-
-
-def build_multi_ai_prompt(task_text, ai_count, models_csv, strategy):
-    task = (task_text or '').strip()
-    if not task:
-        return '❌ Enter a task first.'
-
-    count = max(1, min(8, int(ai_count or 1)))
-    models = [m.strip() for m in (models_csv or '').split(',') if m.strip()]
-    if not models:
-        models = ['model-a', 'model-b']
-
-    lines = [
-        'You are an AI team working in parallel.',
-        f'Strategy: {strategy}',
-        f'Agent count: {count}',
-        f'Model pool: {", ".join(models)}',
-        '',
-        'Task:',
-        task,
-        '',
-        'Protocol:',
-        '1) Planner agent decomposes into milestones.',
-        '2) Implementer agents work in parallel per milestone.',
-        '3) Reviewer agent performs diff + risk checks.',
-        '4) Tester agent validates and reports gaps.',
-        '5) Final synthesizer outputs unified patch + changelog.',
-    ]
-    return "\n".join(lines)
 
 
 
@@ -482,8 +361,8 @@ def create_ui():
 
                 with gr.Accordion('🔧 GitHub Agent (Beta)', open=False):
                     gh_defaults = _load_github_config()
-                    shared.gradio['gh_repo_url'] = gr.Textbox(label='Repository URL (optional)', value=gh_defaults.get('repo_url', ''), placeholder='https://github.com/owner/repo.git')
-                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Local repository path', value=gh_defaults.get('repo_path', '.'))
+                    shared.gradio['gh_repo_path'] = gr.Textbox(label='Repository path', value=gh_defaults.get('repo_path', '.'))
+ main
                     shared.gradio['gh_base_branch'] = gr.Textbox(label='Base branch', value=gh_defaults.get('base_branch', 'main'))
                     shared.gradio['gh_token'] = gr.Textbox(label='GitHub token (optional, for gh auth)', type='password', value=gh_defaults.get('token', ''))
                     shared.gradio['gh_task'] = gr.Textbox(label='Task for AI coding agent', lines=4, placeholder='Describe the code change to implement...')
@@ -497,26 +376,6 @@ def create_ui():
                     shared.gradio['gh_branch'] = gr.Textbox(label='Working branch', interactive=False)
                     shared.gradio['gh_task_file'] = gr.Textbox(label='Task file', interactive=False)
                     shared.gradio['gh_pr_url'] = gr.Textbox(label='PR URL', interactive=False)
-
-                    with gr.Accordion('🧠 AI Team + Copilot Studio', open=False):
-                        shared.gradio['ai_team_count'] = gr.Slider(minimum=1, maximum=8, value=3, step=1, label='Parallel AI workers')
-                        shared.gradio['ai_team_models'] = gr.Textbox(label='Model pool (comma-separated)', placeholder='qwen2.5-coder-14b, mistral-7b, gpt-oss')
-                        shared.gradio['ai_team_strategy'] = gr.Dropdown(
-                            choices=['planner->workers->reviewer', 'spec->implement->test', 'fast parallel brainstorm'],
-                            value='planner->workers->reviewer',
-                            label='Coordination strategy',
-                        )
-                        with gr.Row():
-                            shared.gradio['ai_team_prompt_btn'] = gr.Button('🪄 Build Team Prompt')
-                            shared.gradio['gh_health_btn'] = gr.Button('🩺 Repo Health Check')
-                            shared.gradio['gh_team_tasks_btn'] = gr.Button('🗂️ Create Multi-AI Task Board')
-                        shared.gradio['ai_team_prompt'] = gr.Textbox(label='Generated Team Prompt', lines=8)
-                        shared.gradio['gh_health_table'] = gr.Dataframe(
-                            headers=['status', 'path/file'],
-                            datatype=['str', 'str'],
-                            row_count=8,
-                            interactive=False,
-                        )
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
@@ -860,8 +719,9 @@ def create_event_handlers():
 
     shared.gradio['gh_connect_btn'].click(
         github_connect,
-        gradio('gh_repo_url', 'gh_repo_path', 'gh_base_branch', 'gh_token'),
-        gradio('gh_status', 'gh_repo_path', 'gh_repo_url'),
+        gradio('gh_repo_path', 'gh_base_branch', 'gh_token'),
+        gradio('gh_status', 'gh_repo_path'),
+ main
         show_progress=False,
     )
 
@@ -876,27 +736,6 @@ def create_event_handlers():
         github_open_pr,
         gradio('gh_repo_path', 'gh_branch', 'gh_pr_title', 'gh_task'),
         gradio('gh_status', 'gh_pr_url'),
-        show_progress=False,
-    )
-
-    shared.gradio['ai_team_prompt_btn'].click(
-        build_multi_ai_prompt,
-        gradio('gh_task', 'ai_team_count', 'ai_team_models', 'ai_team_strategy'),
-        gradio('ai_team_prompt'),
-        show_progress=False,
-    )
-
-    shared.gradio['gh_health_btn'].click(
-        github_repo_health,
-        gradio('gh_repo_path'),
-        gradio('gh_status', 'gh_health_table'),
-        show_progress=False,
-    )
-
-    shared.gradio['gh_team_tasks_btn'].click(
-        github_create_multi_agent_tasks,
-        gradio('gh_repo_path', 'gh_base_branch', 'gh_task', 'ai_team_count', 'ai_team_models', 'ai_team_strategy'),
-        gradio('gh_status', 'gh_task_file'),
         show_progress=False,
     )
 
