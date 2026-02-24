@@ -1995,12 +1995,6 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
 #lessons-tab input,
 #lessons-tab .wrap {
     border-radius: 10px !important;
-#lessons-tab .gradio-column {
-    border: 1px solid var(--border-color-primary);
-    border-radius: 12px;
-    padding: 10px;
-    background: var(--body-background-fill);
- main
 }
 
 #lessons-tab .gradio-column .gradio-column {
@@ -2009,5 +2003,76 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     border-radius: 0;
     background: transparent;
 }
-main
- main
+
+/* Workflows tab visual mock:
+   [Planner] -> [WebSearch] -> [Writer]
+*/
+#workflows-tab #workflow-canvas {
+    min-height: 260px;
+    background: #f6f7fb;
+    border: 1px dashed #c5cbe3;
+    border-radius: 12px;
+}
+
+#workflows-tab button,
+#forms-tab button,
+#analytics-tab button,
+#session-tab button {
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+/* Launch modal + floating CTAs */
+#run-demo-cta {
+    position: fixed !important;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    background: #4F46E5 !important;
+}
+
+#feedback-cta {
+    position: fixed !important;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1000;
+}
+
+#whats-new-modal {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    width: 360px;
+    z-index: 1001;
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--body-background-fill);
+    box-shadow: 0 10px 25px rgba(0,0,0,.16);
+}
+
+/* hide old Google/custom-style bottom bars if any extension injects them */
+.google-footer,
+.google-workspace-footer,
+.custom-ai-style-footer,
+#old-footer {
+    display: none !important;
+}
+
+#minimal-footer {
+    font-size: 12px;
+    opacity: .7;
+    text-align: center;
+    padding: 8px;
+}
+
+.tour-card {
+    border: 1px dashed #4F46E5;
+    background: #eef2ff;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+body.density-compact .gradio-container * { --size-text: 12px; }
+body.density-comfortable .gradio-container * { --size-text: 14px; }
+body.density-spacious .gradio-container * { --size-text: 16px; }

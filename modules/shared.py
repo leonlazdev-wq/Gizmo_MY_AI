@@ -248,6 +248,15 @@ settings = {
     'show_two_notebook_columns': False,
     'paste_to_attachment': False,
     'include_past_attachments': True,
+    'show_minimal_footer': True,
+    'display_density': 'Comfortable',
+    'int_workflows': True,
+    'int_collab': True,
+    'int_marketplace': True,
+    'int_forms': True,
+    'int_analytics': True,
+    'int_sso': False,
+    'int_devtests': True,
 
     # Generation parameters - Curve shape
     'temperature': 0.6,

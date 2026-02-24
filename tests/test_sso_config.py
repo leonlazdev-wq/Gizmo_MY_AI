@@ -1,6 +1,6 @@
-from modules.sso import run_sso_test
+from modules.sso import test_connection
 
 
 def test_sso_mock_success():
-    result = run_sso_test("Google", "id", "secret", mock_mode=True)
-    assert result["ok"] == "true"
+    result = test_connection("Google", "cid", "secret", mock_mode=True)
+    assert result["status"] == "ok"

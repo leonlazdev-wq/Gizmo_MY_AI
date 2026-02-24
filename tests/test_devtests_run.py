@@ -1,7 +1,7 @@
 from modules.devtests import run_smoke_tests
 
 
-def test_smoke_runner_returns_result_dict():
-    result = run_smoke_tests()
-    assert "ok" in result
-    assert "output" in result
+def test_devtests_runner_executes():
+    result = run_smoke_tests(timeout=120)
+    assert "code" in result
+    assert isinstance(result["stdout"], str)

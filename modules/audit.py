@@ -1,51 +1,44 @@
-"""Trace and provenance recording.
-
-# Visual mock:
-# User Prompt
-#  ├─ Planner
-#  ├─ WebSearch
-#  └─ Final Answer
-"""
+"""Audit trace recording for provenance and analytics."""
 
 from __future__ import annotations
 
 import json
-import sqlite3
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List
 
-DB_PATH = Path("audit/meta.db")
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+from modules.feature_store import get_conn
 
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS audit_traces (
-            session_id TEXT,
-            message_id TEXT,
-            ts TEXT,
-            payload TEXT
-        )"""
-    )
-    conn.commit()
-    return conn
-
-
-def record_step(session_id: str, message_id: str, step_dict: Dict[str, Any]) -> None:
-    with _db() as conn:
+def _init_db() -> None:
+    with get_conn() as conn:
         conn.execute(
-            "INSERT INTO audit_traces(session_id,message_id,ts,payload) VALUES(?,?,?,?)",
-            (session_id, message_id, datetime.utcnow().isoformat() + "Z", json.dumps(step_dict, ensure_ascii=False)),
+            """
+            CREATE TABLE IF NOT EXISTS audit_traces (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                message_id TEXT,
+                step_json TEXT,
+                created_at TEXT
+            )
+            """
         )
-        conn.commit()
 
 
-def get_timeline(session_id: str, message_id: str) -> List[Dict[str, Any]]:
-    with _db() as conn:
+def record_step(session_id: str, message_id: str, step_dict: dict) -> None:
+    """Record a provenance step."""
+    _init_db()
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO audit_traces (session_id, message_id, step_json, created_at) VALUES (?, ?, ?, ?)",
+            (session_id, message_id, json.dumps(step_dict), datetime.utcnow().isoformat() + "Z"),
+        )
+
+
+def list_steps(session_id: str, message_id: str) -> list[dict]:
+    """List provenance steps for a message."""
+    _init_db()
+    with get_conn() as conn:
         rows = conn.execute(
-            "SELECT ts, payload FROM audit_traces WHERE session_id=? AND message_id=? ORDER BY ts",
+            "SELECT step_json, created_at FROM audit_traces WHERE session_id=? AND message_id=? ORDER BY id",
             (session_id, message_id),
         ).fetchall()
-    return [{"timestamp": ts, **json.loads(payload)} for ts, payload in rows]
+    return [{"step": json.loads(r["step_json"]), "created_at": r["created_at"]} for r in rows]

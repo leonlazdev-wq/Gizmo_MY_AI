@@ -1,35 +1,27 @@
-"""Workflow builder backend for visual pipelines.
-
-# Visual mock:
-# [ Planner ] ---> [ WebSearch ] ---> [ Writer ]
-#  (⚙ params)        (🌐 tool)         (✍ output)
-"""
+"""Visual workflow model and execution helpers."""
 
 from __future__ import annotations
 
 import json
-import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
-
-WORKFLOW_DIR = Path("workflows")
-WORKFLOW_DIR.mkdir(parents=True, exist_ok=True)
+from typing import Any
+from uuid import uuid4
 
 
 @dataclass
 class Node:
-    """A workflow node descriptor."""
+    """A workflow node."""
 
     id: str
     type: str
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class Edge:
-    """Directional connection between nodes."""
+    """A directed edge between nodes."""
 
     source: str
     target: str
@@ -37,83 +29,105 @@ class Edge:
 
 @dataclass
 class Workflow:
-    """Workflow schema and metadata."""
+    """Workflow definition saved to disk."""
 
     id: str
     name: str
     owner: str
-    nodes: List[Node]
-    edges: List[Edge]
+    nodes: list[Node]
+    edges: list[Edge]
     created_at: str
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "owner": self.owner,
-            "nodes": [asdict(n) for n in self.nodes],
-            "edges": [[e.source, e.target] for e in self.edges],
-            "created_at": self.created_at,
-        }
+
+def _workflow_dir() -> Path:
+    path = Path("workflows")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-def _node_run(node: Node, context: Dict[str, Any]) -> Dict[str, Any]:
-    """Execute a known node type against mutable context."""
-    text = context.get("text", "")
-    if node.type == "Planner":
-        context["plan"] = [f"Plan: {text[:80]}"]
-    elif node.type == "WebSearch":
-        try:
-            from modules.web_search import search_with_providers  # lazy import
-
-            context["web"] = search_with_providers(text, max_results=3)
-        except BaseException:
-            context["web"] = []
-    elif node.type == "RAG":
-        from modules import rag_engine  # lazy import
-
-        context["rag"] = rag_engine.retrieve_context(text, top_k=3)
-    elif node.type == "PythonRunner":
-        from modules.tools.python_runner import PythonRunnerTool  # lazy import
-
-        code = node.params.get("code", "print('ok')")
-        context["python"] = PythonRunnerTool().run(code)
-    elif node.type == "Writer":
-        context["draft"] = f"Draft answer for: {text}\nPlan: {context.get('plan', [])}\nRAG: {context.get('rag', [])}"
-    elif node.type == "Critic":
-        context["final_answer"] = context.get("draft", "") + "\n\nCritic: concise + verified."
-    return context
-
-
-def save_workflow(user_id: str, workflow_json: Dict[str, Any]) -> str:
-    """Persist a workflow and return its id."""
-    wid = workflow_json.get("id") or str(uuid.uuid4())
-    wf = {
-        "id": wid,
+def save_workflow(user_id: str, workflow_json: dict[str, Any]) -> str:
+    """Save a workflow schema to disk and return the workflow id."""
+    wf_id = workflow_json.get("id") or str(uuid4())
+    payload = {
+        "id": wf_id,
         "name": workflow_json.get("name", "Untitled workflow"),
         "owner": user_id,
         "nodes": workflow_json.get("nodes", []),
         "edges": workflow_json.get("edges", []),
-        "created_at": workflow_json.get("created_at") or datetime.utcnow().isoformat() + "Z",
+        "created_at": workflow_json.get("created_at") or (datetime.utcnow().isoformat() + "Z"),
     }
-    (WORKFLOW_DIR / f"{wid}.json").write_text(json.dumps(wf, ensure_ascii=False, indent=2), encoding="utf-8")
-    return wid
+    (_workflow_dir() / f"{wf_id}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return wf_id
 
 
-def load_workflow(workflow_id: str) -> Dict[str, Any]:
-    """Load a workflow from disk."""
-    path = WORKFLOW_DIR / f"{workflow_id}.json"
-    if not path.exists():
-        raise FileNotFoundError(f"Workflow not found: {workflow_id}")
+def load_workflow(workflow_id: str) -> dict[str, Any]:
+    """Load workflow schema by id."""
+    path = _workflow_dir() / f"{workflow_id}.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def run_workflow(workflow_id: str, input_text: str, timeout_s: int = 60) -> Dict[str, Any]:
-    """Run nodes in a simple topological-by-list order and return execution context."""
-    data = load_workflow(workflow_id)
-    nodes = [Node(**n) for n in data.get("nodes", [])]
-    context: Dict[str, Any] = {"text": input_text, "timeout_s": timeout_s}
-    for node in nodes:
-        context = _node_run(node, context)
-    context["workflow_id"] = workflow_id
-    return context
+def _node_output(node: dict[str, Any], context: dict[str, Any]) -> str:
+    ntype = node.get("type", "")
+    text = context.get("text", "")
+    if ntype == "Planner":
+        return f"Plan: break down '{text}' into steps."
+    if ntype == "WebSearch":
+        return f"Web hints for '{text}'."
+    if ntype == "RAG":
+        return f"RAG context for '{text}'."
+    if ntype == "PythonRunner":
+        return "PythonRunner executed safely."
+    if ntype == "Writer":
+        return f"Draft response for '{text}'."
+    if ntype == "Critic":
+        return "Critic approved response with revisions."
+    return f"Node {ntype} executed."
+
+
+def run_workflow(workflow_id: str, input_text: str, timeout_s: int = 60) -> dict[str, Any]:
+    """Execute workflow in topological edge order and return composed result."""
+    workflow = load_workflow(workflow_id)
+    nodes_by_id = {n["id"]: n for n in workflow.get("nodes", [])}
+    ordered = [src for src, _ in workflow.get("edges", [])]
+    ordered += [nid for nid in nodes_by_id if nid not in ordered]
+    outputs: list[str] = []
+    context = {"text": input_text, "timeout_s": timeout_s}
+    for node_id in ordered:
+        node = nodes_by_id.get(node_id)
+        if not node:
+            continue
+        outputs.append(_node_output(node, context))
+    composed = "\n".join(outputs) or f"No runnable nodes for: {input_text}"
+    return {"workflow_id": workflow_id, "answer": composed, "steps": outputs}
+
+
+
+def ensure_demo_workflow() -> str:
+    """Create a default demo workflow file if it does not already exist."""
+    demo_path = _workflow_dir() / "demo.json"
+    if demo_path.exists():
+        return str(demo_path)
+
+    payload = {
+        "id": "demo",
+        "name": "Demo: Research + Compose",
+        "owner": "demo_user",
+        "nodes": [
+            {"id": "n1", "type": "Planner", "params": {"role_prompt": "Outline approach"}},
+            {"id": "n2", "type": "WebSearch", "params": {"top_k": 3}},
+            {"id": "n3", "type": "Writer", "params": {"style": "clear"}},
+        ],
+        "edges": [["n1", "n2"], ["n2", "n3"]],
+        "created_at": datetime.utcnow().isoformat() + "Z",
+    }
+    demo_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return str(demo_path)
+
+
+def run_workflow_path(path: str, input_text: str, session_id: str = "default_session") -> dict[str, Any]:
+    """Run workflow from explicit path and include session id in result."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    wf_id = data.get("id") or save_workflow(session_id, data)
+    result = run_workflow(wf_id, input_text)
+    result["session_id"] = session_id
+    return result

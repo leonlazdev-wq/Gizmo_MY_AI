@@ -436,7 +436,8 @@ class LlamaServer:
             "q5_1": "q5_1",
             "f32": "f32",
         }
-        selected_cache_type = cache_type_aliases.get(shared.args.cache_type, "f16")
+        raw_cache_type = _to_str(shared.args.cache_type, "f16").lower()
+        selected_cache_type = cache_type_aliases.get(raw_cache_type, "f16")
         cmd += [
             "--cache-type-k", selected_cache_type,
             "--cache-type-v", selected_cache_type

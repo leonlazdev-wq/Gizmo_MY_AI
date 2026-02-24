@@ -1,25 +1,19 @@
-"""SSO/OIDC mock-friendly configuration and test helpers."""
+"""Mock-friendly SSO/OAuth setup helpers."""
 
 from __future__ import annotations
 
-from typing import Dict
 
-
-def get_redirect_uri(base_url: str = "http://localhost:5005") -> str:
-    return f"{base_url}/auth/oidc/callback"
-
-
-def run_sso_test(provider: str, client_id: str, client_secret: str, mock_mode: bool = True) -> Dict[str, str]:
+def test_connection(provider: str, client_id: str, client_secret: str, mock_mode: bool = True) -> dict[str, str]:
+    """Test SSO configuration with mock or lightweight validation."""
+    provider_name = (provider or "").strip().lower()
+    if provider_name not in {"google", "microsoft", "okta"}:
+        return {"status": "error", "message": "Unsupported provider"}
+    if not client_id or not client_secret:
+        return {"status": "error", "message": "Missing client credentials"}
     if mock_mode:
-        return {"ok": "true", "provider": provider, "message": "Mock SSO handshake succeeded."}
-    try:
-        import authlib  # type: ignore  # lazy optional import
-
-        _ = authlib
-        return {"ok": "true", "provider": provider, "message": "Authlib available; configure real provider metadata."}
-    except Exception as exc:
-        return {"ok": "false", "provider": provider, "message": f"SSO test failed: {exc}"}
+        return {"status": "ok", "message": f"Mocked {provider.title()} OIDC test succeeded"}
+    return {"status": "error", "message": "Real OIDC flow not enabled in this environment"}
 
 
-# Backward-compatible alias
-test_connection = run_sso_test
+# Prevent pytest from collecting helper as test
+test_connection.__test__ = False

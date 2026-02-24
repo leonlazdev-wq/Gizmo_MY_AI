@@ -1,106 +1,100 @@
-"""Simple collaboration session services.
-
-# Visual mock:
-# ●●● 3 online  [Invite]
-"""
+"""Collaboration session and invite token management."""
 
 from __future__ import annotations
 
 import json
-import secrets
-import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
+from secrets import token_urlsafe
 
-DATA_DIR = Path("audit")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-DB_PATH = DATA_DIR / "meta.db"
+from modules.feature_store import get_conn
 
 
-def _db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS collab_invites (
-            token TEXT PRIMARY KEY,
-            session_id TEXT,
-            owner_id TEXT,
-            expires_at TEXT,
-            password TEXT,
-            used INTEGER DEFAULT 0
-        )"""
-    )
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS collab_members (
-            session_id TEXT,
-            user_id TEXT,
-            role TEXT,
-            presence TEXT,
-            UNIQUE(session_id, user_id)
-        )"""
-    )
-    conn.commit()
-    return conn
-
-
-def create_session_share(session_id: str, owner_id: str = "owner", password: str = "") -> str:
-    token = secrets.token_urlsafe(24)
-    expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat() + "Z"
-    with _db() as conn:
+def _init_db() -> None:
+    with get_conn() as conn:
         conn.execute(
-            "INSERT INTO collab_invites(token,session_id,owner_id,expires_at,password,used) VALUES(?,?,?,?,?,0)",
-            (token, session_id, owner_id, expires_at, password),
+            """
+            CREATE TABLE IF NOT EXISTS collab_sessions (
+                session_id TEXT,
+                user_id TEXT,
+                role TEXT,
+                joined_at TEXT,
+                last_seen TEXT
+            )
+            """
         )
         conn.execute(
-            "INSERT OR IGNORE INTO collab_members(session_id,user_id,role,presence) VALUES(?,?,?,?)",
-            (session_id, owner_id, "Owner", datetime.utcnow().isoformat() + "Z"),
+            """
+            CREATE TABLE IF NOT EXISTS collab_invites (
+                token TEXT PRIMARY KEY,
+                session_id TEXT,
+                role TEXT,
+                expires_at TEXT,
+                password TEXT,
+                used INTEGER DEFAULT 0
+            )
+            """
         )
-        conn.commit()
+
+
+def create_session_share(session_id: str, role: str = "Editor", password: str = "") -> str:
+    """Create a time-limited invite token."""
+    _init_db()
+    token = token_urlsafe(18)
+    expires = (datetime.utcnow() + timedelta(hours=24)).isoformat() + "Z"
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO collab_invites (token, session_id, role, expires_at, password, used) VALUES (?, ?, ?, ?, ?, 0)",
+            (token, session_id, role, expires, password),
+        )
     return token
 
 
-def join_session(token: str, user_id: str, password: str = "") -> Dict[str, str]:
-    with _db() as conn:
-        row = conn.execute("SELECT session_id, expires_at, password, used FROM collab_invites WHERE token=?", (token,)).fetchone()
-        if not row:
-            raise ValueError("Invalid token")
-        session_id, expires_at, required_password, used = row
-        if used:
-            raise ValueError("Token already used")
-        if required_password and required_password != password:
-            raise ValueError("Invalid invite password")
-        if datetime.utcnow() > datetime.fromisoformat(expires_at.rstrip("Z")):
-            raise ValueError("Token expired")
+def join_session(token: str, user_id: str, password: str = "") -> dict[str, str]:
+    """Join a session using token if valid and single-use."""
+    _init_db()
+    with get_conn() as conn:
+        invite = conn.execute("SELECT * FROM collab_invites WHERE token=?", (token,)).fetchone()
+        if not invite:
+            return {"status": "error", "message": "Invalid invite token"}
+        if invite["used"]:
+            return {"status": "error", "message": "Invite token already used"}
+        if invite["password"] and invite["password"] != password:
+            return {"status": "error", "message": "Invite password mismatch"}
+        if datetime.fromisoformat(invite["expires_at"].replace("Z", "")) < datetime.utcnow():
+            return {"status": "error", "message": "Invite token expired"}
 
+        now = datetime.utcnow().isoformat() + "Z"
         conn.execute(
-            "INSERT OR REPLACE INTO collab_members(session_id,user_id,role,presence) VALUES(?,?,?,?)",
-            (session_id, user_id, "Editor", datetime.utcnow().isoformat() + "Z"),
+            "INSERT INTO collab_sessions (session_id, user_id, role, joined_at, last_seen) VALUES (?, ?, ?, ?, ?)",
+            (invite["session_id"], user_id, invite["role"], now, now),
         )
         conn.execute("UPDATE collab_invites SET used=1 WHERE token=?", (token,))
-        conn.commit()
-    return {"session_id": session_id, "user_id": user_id, "role": "Editor"}
+    _persist_membership(invite["session_id"])
+    return {"status": "ok", "session_id": invite["session_id"], "role": invite["role"]}
 
 
-def list_collaborators(session_id: str) -> List[Dict[str, str]]:
-    with _db() as conn:
-        rows = conn.execute("SELECT user_id, role, presence FROM collab_members WHERE session_id=?", (session_id,)).fetchall()
-    return [{"name": r[0], "role": r[1], "presence": r[2]} for r in rows]
+def _persist_membership(session_id: str) -> None:
+    members = list_collaborators(session_id)
+    path = Path("audit") / f"collab_{session_id}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(members, indent=2), encoding="utf-8")
+
+
+def list_collaborators(session_id: str) -> list[dict[str, str]]:
+    """List collaborators for session."""
+    _init_db()
+    with get_conn() as conn:
+        rows = conn.execute("SELECT user_id, role, last_seen FROM collab_sessions WHERE session_id=?", (session_id,)).fetchall()
+    return [{"user_id": r["user_id"], "role": r["role"], "last_seen": r["last_seen"]} for r in rows]
 
 
 def update_presence(user_id: str, session_id: str) -> None:
-    with _db() as conn:
+    """Update presence heartbeat timestamp."""
+    _init_db()
+    now = datetime.utcnow().isoformat() + "Z"
+    with get_conn() as conn:
         conn.execute(
-            "UPDATE collab_members SET presence=? WHERE session_id=? AND user_id=?",
-            (datetime.utcnow().isoformat() + "Z", session_id, user_id),
+            "UPDATE collab_sessions SET last_seen=? WHERE session_id=? AND user_id=?",
+            (now, session_id, user_id),
         )
-        conn.commit()
-
-
-def collaborators_table(session_id: str) -> str:
-    """Return markdown table for lightweight UI rendering."""
-    rows = list_collaborators(session_id)
-    if not rows:
-        return "No collaborators yet."
-    head = "| Name | Role | Presence |\n|---|---|---|"
-    lines = [f"| {r['name']} | {r['role']} | {r['presence']} |" for r in rows]
-    return "\n".join([head] + lines)

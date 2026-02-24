@@ -2,9 +2,18 @@
   "workflows_tab": "Workflows",
   "forms_tab": "Forms",
   "analytics_tab": "Analytics",
-  "integrations_settings": "Integrations (opt-in)",
-  "marketplace_title": "Marketplace",
-  "sso_security_title": "Security: SSO / OAuth",
-  "devtests_title": "Developer: Automated Testing & CI",
-  "collab_title": "Collaborators & RBAC"
+  "marketplace_tab": "Marketplace",
+  "developer_tab": "Developer",
+  "integrations_panel": "Integrations",
+  "whats_new": "What's new",
+  "start_tour": "Start Tour",
+  "run_demo": "Run demo",
+  "feature_flags": "Feature flags",
+  "ab_tester": "A/B tester",
+  "version_diff": "Version Diff",
+  "theme_editor": "Theme Editor",
+  "snapshot_ui": "Snapshot UI",
+  "feedback": "Feedback",
+  "show_minimal_footer": "Show minimal footer",
+  "display_density": "Display density"
 }

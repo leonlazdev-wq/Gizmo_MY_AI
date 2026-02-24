@@ -1,59 +1,72 @@
-"""Conversational form templates and storage."""
+"""Conversational forms with validation and persistence."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
-
-FORM_DIR = Path("forms")
-FORM_DIR.mkdir(parents=True, exist_ok=True)
+from typing import Any
 
 
 @dataclass
 class FormTemplate:
-    id: str
-    name: str
-    steps: List[Dict[str, Any]] = field(default_factory=list)
+    """Form template schema."""
+
+    template_id: str
+    title: str
+    steps: list[dict[str, Any]]
 
 
 DEFAULT_TEMPLATES = {
     "bug_report": FormTemplate(
-        id="bug_report",
-        name="Bug Report",
+        template_id="bug_report",
+        title="Bug Report",
         steps=[
-            {"field": "title", "type": "text", "required": True},
-            {"field": "email", "type": "email", "required": True},
-            {"field": "date", "type": "date", "required": True},
-            {"field": "severity", "type": "choice", "choices": ["low", "medium", "high"]},
-            {"field": "details", "type": "text", "required": True},
+            {"name": "title", "type": "text", "required": True},
+            {"name": "email", "type": "email", "required": True},
+            {"name": "date", "type": "date", "required": True},
+            {"name": "severity", "type": "choice", "choices": ["low", "medium", "high"]},
         ],
     )
 }
 
 
-def validate_field(ftype: str, value: str) -> bool:
-    if ftype == "email":
-        return "@" in value and "." in value.split("@")[-1]
-    if ftype == "date":
-        return len(value.split("-")) == 3
-    return bool(str(value).strip())
+def _forms_dir() -> Path:
+    path = Path("forms")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-def run_form(session_id: str, template_id: str, values: Dict[str, Any]) -> str:
+def validate_field(field_type: str, value: str) -> bool:
+    """Validate a typed field value."""
+    if field_type == "email":
+        return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", value or ""))
+    if field_type == "date":
+        return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", value or ""))
+    return bool((value or "").strip())
+
+
+def run_form(session_id: str, template_id: str, values: dict[str, str]) -> dict[str, Any]:
+    """Validate and persist form submission."""
     template = DEFAULT_TEMPLATES[template_id]
+    errors: list[str] = []
     for step in template.steps:
-        field = step["field"]
-        if step.get("required") and not validate_field(step["type"], str(values.get(field, ""))):
-            raise ValueError(f"Invalid field: {field}")
-    out = {
+        name = step["name"]
+        v = values.get(name, "")
+        if step.get("required") and not validate_field(step["type"], v):
+            errors.append(name)
+
+    if errors:
+        return {"status": "error", "errors": errors}
+
+    payload = {
         "session_id": session_id,
         "template_id": template_id,
         "values": values,
-        "created_at": datetime.utcnow().isoformat() + "Z",
+        "saved_at": datetime.utcnow().isoformat() + "Z",
     }
-    out_path = FORM_DIR / f"{template_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-    out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-    return str(out_path)
+    out = _forms_dir() / f"{session_id}_{template_id}_{int(datetime.utcnow().timestamp())}.json"
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return {"status": "ok", "path": str(out)}
