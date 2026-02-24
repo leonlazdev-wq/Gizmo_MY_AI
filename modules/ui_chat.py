@@ -6,6 +6,13 @@ import gradio as gr
 from PIL import Image
 
 from modules import chat, shared, ui, utils
+from modules.chat_actions import MessageActions
+from modules.chat_templates import (
+    apply_template as apply_chat_template,
+    create_custom_template,
+    get_template_choices,
+)
+from modules.context_manager import ContextManager
 from modules.adaptive_ui import summarize_text, suggest_actions
 from modules.audit import list_steps
 from modules.html_generator import chat_html_wrapper
@@ -66,6 +73,66 @@ def apply_custom_ai_style(chat_input, style_enabled, style_prompt):
 
 def apply_lesson_tab_prompt():
     return True, LESSON_TAB_SYSTEM_PROMPT
+
+
+MESSAGE_ACTIONS = MessageActions()
+CONTEXT_MANAGER = ContextManager()
+
+
+def refresh_template_choices(category):
+    return gr.update(choices=get_template_choices(category), value=None)
+
+
+def apply_selected_template(template_key, history):
+    return apply_chat_template(template_key, history)
+
+
+def create_template_and_refresh(name, description, system_prompt, category, icon, current_category):
+    status = create_custom_template(name, description, system_prompt, category, icon)
+    return status, gr.update(choices=get_template_choices(current_category or 'All'), value=None)
+
+
+def analyze_context(history):
+    analysis = CONTEXT_MANAGER.analyze_context(history)
+    html = CONTEXT_MANAGER.render_context_html(analysis)
+    return html, f"ℹ️ Total tokens: {analysis['total_tokens']} | Remaining: {analysis['remaining_tokens']}"
+
+
+def edit_message_action(history, msg_index, new_content):
+    return MESSAGE_ACTIONS.edit_message(history, int(msg_index), new_content)
+
+
+def branch_conversation_action(history, branch_point):
+    return MESSAGE_ACTIONS.branch_conversation(history, int(branch_point))
+
+
+def save_snippet_action(history, msg_index, category):
+    return MESSAGE_ACTIONS.save_snippet(history, int(msg_index), category)
+
+
+def export_conversation_action(history, start_idx, end_idx, export_format):
+    return MESSAGE_ACTIONS.export_selection(history, int(start_idx), int(end_idx), export_format)
+
+
+def pin_message_action(history, msg_index):
+    return CONTEXT_MANAGER.pin_message(history, int(msg_index))
+
+
+def prune_context_action(history):
+    return CONTEXT_MANAGER.smart_prune(history)
+
+
+def build_summary_prompt(history):
+    visible = history.get('visible', [])
+    if not visible:
+        return '❌ No conversation to summarize'
+
+    lines = []
+    for user_msg, bot_msg in visible[-12:]:
+        lines.append(f'User: {user_msg}')
+        lines.append(f'Assistant: {bot_msg}')
+
+    return 'Summarize this conversation in 2-3 concise bullet points:\n\n' + '\n'.join(lines)
 
 
 
@@ -208,6 +275,75 @@ def create_ui():
                     shared.gradio['count_tokens'] = gr.Button('Count tokens', size='sm')
 
                 shared.gradio['token_display'] = gr.HTML(value='', elem_classes='token-display')
+
+                gr.HTML("<div class='sidebar-vertical-separator'></div>")
+                gr.Markdown('### 📚 Chat Templates')
+                shared.gradio['template_category'] = gr.Dropdown(
+                    choices=['All', 'Programming', 'Creative', 'Academic', 'Business', 'Other'],
+                    value='All',
+                    label='Category'
+                )
+                shared.gradio['template_list'] = gr.Radio(
+                    choices=get_template_choices('All'),
+                    value=None,
+                    label='Select Template'
+                )
+                with gr.Row():
+                    shared.gradio['apply_template_btn'] = gr.Button('✨ Apply Template', variant='primary')
+                    shared.gradio['template_status'] = gr.Textbox(label='Template Status', interactive=False)
+
+                with gr.Accordion('➕ Create Custom Template', open=False):
+                    shared.gradio['custom_template_name'] = gr.Textbox(label='Template Name')
+                    shared.gradio['custom_template_desc'] = gr.Textbox(label='Description', lines=2)
+                    shared.gradio['custom_template_prompt'] = gr.Textbox(label='System Prompt', lines=4)
+                    shared.gradio['custom_template_category'] = gr.Dropdown(
+                        choices=['Programming', 'Creative', 'Academic', 'Business', 'Other'],
+                        value='Other',
+                        label='Category'
+                    )
+                    shared.gradio['custom_template_icon'] = gr.Textbox(label='Icon (emoji)', value='💬')
+                    shared.gradio['create_template_btn'] = gr.Button('Create Template')
+
+                gr.HTML("<div class='sidebar-vertical-separator'></div>")
+                gr.Markdown('### ⚡ Message Actions')
+                shared.gradio['message_index'] = gr.Number(label='Message Index', value=0, precision=0)
+                with gr.Accordion('📝 Edit Message', open=False):
+                    shared.gradio['edit_message_new_content'] = gr.Textbox(label='New Content', lines=3)
+                    shared.gradio['edit_message_btn'] = gr.Button('✏️ Edit')
+                with gr.Accordion('🌿 Branch Conversation', open=False):
+                    shared.gradio['branch_point'] = gr.Number(label='Branch from message', value=0, precision=0)
+                    shared.gradio['branch_conversation_btn'] = gr.Button('🌿 Create Branch')
+                with gr.Accordion('💾 Save Snippet', open=False):
+                    shared.gradio['snippet_category'] = gr.Dropdown(
+                        choices=['Code', 'Writing', 'Research', 'General'],
+                        value='General',
+                        label='Category'
+                    )
+                    shared.gradio['save_snippet_btn'] = gr.Button('💾 Save')
+                with gr.Accordion('📤 Export Conversation', open=False):
+                    shared.gradio['export_start'] = gr.Number(label='From message', value=0, precision=0)
+                    shared.gradio['export_end'] = gr.Number(label='To message', value=-1, precision=0)
+                    shared.gradio['export_format'] = gr.Radio(
+                        choices=['markdown', 'json', 'txt'],
+                        value='markdown',
+                        label='Format'
+                    )
+                    shared.gradio['export_btn'] = gr.Button('📤 Export')
+
+                gr.HTML("<div class='sidebar-vertical-separator'></div>")
+                gr.Markdown('### 🧠 Context Manager')
+                shared.gradio['context_token_display'] = gr.HTML(
+                    "<div style='text-align:center'><div style='font-size:24px;font-weight:bold'>0 / 4096</div>"
+                    "<div style='font-size:12px;color:#888'>tokens used</div></div>"
+                )
+                with gr.Row():
+                    shared.gradio['refresh_context_btn'] = gr.Button('🔄 Refresh Context Info')
+                    shared.gradio['prune_context_btn'] = gr.Button('✂️ Auto-Prune')
+                shared.gradio['pin_message_index'] = gr.Number(label='Message to pin', value=0, precision=0)
+                with gr.Row():
+                    shared.gradio['pin_message_btn'] = gr.Button('📌 Pin Message')
+                    shared.gradio['summarize_conversation_btn'] = gr.Button('📝 Summarize')
+                shared.gradio['context_status'] = gr.Textbox(label='Action/Context Status', interactive=False)
 
         # Hidden elements for version navigation and editing
         with gr.Row(visible=False):
@@ -542,4 +678,113 @@ def create_event_handlers():
         lambda x: gr.update(visible=x),
         gradio('enable_web_search'),
         gradio('web_search_row')
+    )
+
+    shared.gradio['template_category'].change(
+        refresh_template_choices,
+        gradio('template_category'),
+        gradio('template_list'),
+        show_progress=False,
+    )
+
+    shared.gradio['apply_template_btn'].click(
+        apply_selected_template,
+        gradio('template_list', 'history'),
+        gradio('history', 'context', 'template_status'),
+        show_progress=False,
+    ).then(
+        chat.redraw_html,
+        gradio(reload_arr),
+        gradio('display'),
+        show_progress=False,
+    )
+
+    shared.gradio['create_template_btn'].click(
+        create_template_and_refresh,
+        gradio(
+            'custom_template_name',
+            'custom_template_desc',
+            'custom_template_prompt',
+            'custom_template_category',
+            'custom_template_icon',
+            'template_category',
+        ),
+        gradio('template_status', 'template_list'),
+        show_progress=False,
+    )
+
+    shared.gradio['edit_message_btn'].click(
+        edit_message_action,
+        gradio('history', 'message_index', 'edit_message_new_content'),
+        gradio('history', 'context_status'),
+        show_progress=False,
+    ).then(
+        chat.redraw_html,
+        gradio(reload_arr),
+        gradio('display'),
+        show_progress=False,
+    )
+
+    shared.gradio['branch_conversation_btn'].click(
+        branch_conversation_action,
+        gradio('history', 'branch_point'),
+        gradio('history', 'context_status'),
+        show_progress=False,
+    ).then(
+        chat.redraw_html,
+        gradio(reload_arr),
+        gradio('display'),
+        show_progress=False,
+    )
+
+    shared.gradio['save_snippet_btn'].click(
+        save_snippet_action,
+        gradio('history', 'message_index', 'snippet_category'),
+        gradio('context_status'),
+        show_progress=False,
+    )
+
+    shared.gradio['export_btn'].click(
+        export_conversation_action,
+        gradio('history', 'export_start', 'export_end', 'export_format'),
+        gradio('context_status'),
+        show_progress=False,
+    )
+
+    shared.gradio['refresh_context_btn'].click(
+        analyze_context,
+        gradio('history'),
+        gradio('context_token_display', 'context_status'),
+        show_progress=False,
+    )
+
+    shared.gradio['pin_message_btn'].click(
+        pin_message_action,
+        gradio('history', 'pin_message_index'),
+        gradio('context_status'),
+        show_progress=False,
+    )
+
+    shared.gradio['prune_context_btn'].click(
+        prune_context_action,
+        gradio('history'),
+        gradio('history', 'context_status'),
+        show_progress=False,
+    ).then(
+        chat.redraw_html,
+        gradio(reload_arr),
+        gradio('display'),
+        show_progress=False,
+    ).then(
+        analyze_context,
+        gradio('history'),
+        gradio('context_token_display', 'context_status'),
+        show_progress=False,
+    )
+
+    shared.gradio['summarize_conversation_btn'].click(
+        build_summary_prompt,
+        gradio('history'),
+        gradio('context_status'),
+        show_progress=False,
     )
