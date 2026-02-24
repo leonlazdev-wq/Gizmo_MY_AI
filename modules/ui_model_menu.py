@@ -11,6 +11,8 @@ import gradio as gr
 from modules import loaders, shared, ui, utils
 from modules.logging_colors import logger
 from modules.LoRA import add_lora_to_model
+from modules.model_hub import ModelHub
+from modules.model_metrics import METRICS
 from modules.models import load_model, unload_model
 from modules.models_settings import (
     apply_model_settings_to_state,
@@ -21,6 +23,18 @@ from modules.models_settings import (
     update_model_parameters
 )
 from modules.utils import gradio
+
+
+MODEL_HUB = ModelHub()
+
+
+def refresh_metrics_dashboard():
+    return METRICS.generate_dashboard_html()
+
+
+def search_hub_models(query, size_filter, quant_filter):
+    models = MODEL_HUB.search_models(query, {"size": size_filter, "quantization": quant_filter})
+    return MODEL_HUB.format_model_results(models)
 
 
 def create_ui():
@@ -37,6 +51,26 @@ def create_ui():
                     shared.gradio['save_model_settings'] = gr.Button("Save settings", elem_classes='refresh-button', interactive=not mu)
 
                 shared.gradio['loader'] = gr.Dropdown(label="Model loader", choices=loaders.loaders_and_params.keys() if not shared.args.portable else ['llama.cpp'], value=None)
+                with gr.Accordion('⚡ Performance Dashboard', open=False):
+                    shared.gradio['metrics_status'] = gr.Textbox(label='Metrics monitor', value='Idle', interactive=False)
+                    with gr.Row():
+                        shared.gradio['metrics_start_btn'] = gr.Button('▶️ Start metrics')
+                        shared.gradio['metrics_stop_btn'] = gr.Button('⏹️ Stop metrics')
+                        shared.gradio['metrics_refresh_btn'] = gr.Button('🔄 Refresh now')
+                    shared.gradio['metrics_display'] = gr.HTML(value=refresh_metrics_dashboard())
+                    shared.gradio['metrics_timer'] = gr.Timer(value=2.0)
+
+                with gr.Accordion('🌐 Model Hub', open=False):
+                    shared.gradio['hub_query'] = gr.Textbox(label='Search Models', placeholder='llama, mistral, phi...')
+                    with gr.Row():
+                        shared.gradio['hub_size_filter'] = gr.Radio(choices=['All sizes', 'Small (<5GB)', 'Medium (5-20GB)', 'Large (>20GB)'], value='All sizes', label='Size')
+                        shared.gradio['hub_quant_filter'] = gr.CheckboxGroup(choices=['GGUF', 'GPTQ', 'AWQ', 'EXL2'], label='Quantization')
+                    shared.gradio['hub_search_btn'] = gr.Button('🔍 Search Hub', variant='primary')
+                    shared.gradio['hub_results'] = gr.HTML(value='<p>Search Hugging Face models.</p>')
+                    shared.gradio['hub_download_model_id'] = gr.Textbox(label='Model ID to download', placeholder='org/model')
+                    shared.gradio['hub_download_btn'] = gr.Button('⬇️ Download model')
+                    shared.gradio['hub_status'] = gr.Textbox(label='Hub status', interactive=False)
+
                 with gr.Blocks():
                     gr.Markdown("## Main options")
                     with gr.Row():
@@ -176,6 +210,24 @@ def create_event_handlers():
     shared.gradio['download_model_button'].click(download_model_wrapper, gradio('custom_model_menu', 'download_specific_file'), gradio('model_status'), show_progress=True)
     shared.gradio['get_file_list'].click(partial(download_model_wrapper, return_links=True), gradio('custom_model_menu', 'download_specific_file'), gradio('model_status'), show_progress=True)
     shared.gradio['customized_template_submit'].click(save_instruction_template, gradio('model_menu', 'customized_template'), gradio('model_status'), show_progress=True)
+
+    shared.gradio['metrics_start_btn'].click(lambda: METRICS.start_monitoring(), None, gradio('metrics_status'), show_progress=False)
+    shared.gradio['metrics_stop_btn'].click(lambda: METRICS.stop_monitoring(), None, gradio('metrics_status'), show_progress=False)
+    shared.gradio['metrics_refresh_btn'].click(refresh_metrics_dashboard, None, gradio('metrics_display'), show_progress=False)
+    shared.gradio['metrics_timer'].tick(refresh_metrics_dashboard, None, gradio('metrics_display'), show_progress=False)
+
+    shared.gradio['hub_search_btn'].click(
+        search_hub_models,
+        gradio('hub_query', 'hub_size_filter', 'hub_quant_filter'),
+        gradio('hub_results'),
+        show_progress=True,
+    )
+    shared.gradio['hub_download_btn'].click(
+        lambda model_id: MODEL_HUB.download_model(model_id),
+        gradio('hub_download_model_id'),
+        gradio('hub_status'),
+        show_progress=True,
+    )
 
 
 def load_model_wrapper(selected_model, loader, autoload=False):
@@ -493,3 +545,4 @@ def format_file_size(size_bytes):
         return f"{s:.2f} {size_names[i]}"
     else:
         return f"{s:.1f} {size_names[i]}"
+
