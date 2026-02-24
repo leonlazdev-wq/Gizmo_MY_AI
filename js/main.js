@@ -1112,7 +1112,7 @@ document.fonts.addEventListener("loadingdone", (event) => {
 //------------------------------------------------
 function ensureConnectorFab() {
   const chatInput = document.getElementById('chat-input');
-  if (!chatInput || chatInput.querySelector('.gizmo-connector-fab')) return;
+  if (!chatInput || document.getElementById('connector-plus-html') || chatInput.querySelector('.gizmo-connector-fab')) return;
 
   const connectorItems = [
     {name: 'GitHub', desc: 'Link repos and issues', url: 'https://github.com/settings/tokens'},

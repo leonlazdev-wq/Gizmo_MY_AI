@@ -6,12 +6,85 @@ import gradio as gr
 from PIL import Image
 
 from modules import chat, shared, ui, utils
+from modules.adaptive_ui import summarize_text, suggest_actions
+from modules.audit import list_steps
 from modules.html_generator import chat_html_wrapper
 from modules.text_generation import stop_everything_event
 from modules.utils import gradio
 
 inputs = ('Chat input', 'interface_state')
 reload_arr = ('history', 'name1', 'name2', 'mode', 'chat_style', 'character_menu')
+
+
+LESSON_TAB_SYSTEM_PROMPT = '''SYSTEM PROMPT — Lesson-Tab AI
+You are a lesson assistant agent. Primary goal: convert teacher instructions, class materials, or a student's request into short interactive lessons that support visual, auditory, and multilingual learners.
+
+Capabilities you must offer:
+- Receive text, or short structured requests (task: "teach X", "quiz me on Y", "annotate slide Z").
+- Produce: (A) short lesson text (2–6 bullet points), (B) spoken audio (TTS), (C) visual aids (annotated images / small diagrams), (D) a short quiz (3–8 questions with answers).
+- Support any language requested by the user; detect language automatically when not specified.
+- When given permission, access linked classroom materials (Slides or Docs) and: summarize, extract learning objectives, produce slide-ready content, and generate Q&A for practice.
+- Produce annotated images by combining an internet-found image or a generated placeholder and overlaying arrows/labels (e.g., "nucleus", "proton", "neutron"). When web images are used, cite the source metadata in a single short line.
+- Provide a compact "export to slide" payload that maps lesson bullets → slide title + 2–3 bullets per slide.
+- Offer accessibility options: adjustable speaking rate, closed captions, large-font images.
+
+User controls:
+- Microphone input: accept spoken questions and return spoken replies.
+- Play button: plays the generated TTS audio.
+- Visual icon: request a visual variant; when clicked produce annotated image(s) and an image thumbnail gallery.
+- Language selector: override auto-detection.
+- "Use classroom file" button: on approval, the agent will read Slides/Docs from the linked classroom account and produce a lesson draft.
+
+Constraints & safety:
+- Only read files explicitly authorized by the user.
+- If the user asks for copyrighted text beyond short excerpts, summarize instead of verbatim quoting.
+- If content appears to be dangerous or harmful, refuse and offer a safe alternative.
+
+Output format (when asked to produce lesson content):
+Return a JSON object with fields:
+{
+  "title": "string",
+  "language": "ISO code",
+  "bullets": ["..."],
+  "tts_audio_url": "https://...",
+  "images": [ {"thumb_url":"...","annotated_url":"...","source":"..."} ],
+  "quiz": [ {"q":"...","choices":["..."],"answer_index":n} ],
+  "slide_export": [ {"slide_title":"...","slide_bullets":["..."]} ]
+}
+'''
+
+
+def apply_custom_ai_style(chat_input, style_enabled, style_prompt):
+    if not style_enabled or not style_prompt or not style_prompt.strip():
+        return chat_input
+
+    updated_input = chat_input.copy()
+    style_block = f"[Custom AI style instructions]\n{style_prompt.strip()}\n[/Custom AI style instructions]\n\n"
+    updated_input['text'] = f"{style_block}{updated_input.get('text', '')}"
+    return updated_input
+
+
+def apply_lesson_tab_prompt():
+    return True, LESSON_TAB_SYSTEM_PROMPT
+
+
+
+
+
+
+def _ensure_adaptive_keys() -> None:
+    """Ensure legacy/new adaptive key aliases exist before event binding."""
+    alias_pairs = (
+        ('adaptive_summarize', 'adaptive_summarize_btn'),
+        ('adaptive_actions', 'adaptive_actions_btn'),
+        ('adaptive_bugs', 'adaptive_bugs_btn'),
+        ('adaptive_task', 'adaptive_task_btn'),
+    )
+    for legacy, new in alias_pairs:
+        if legacy not in shared.gradio and new in shared.gradio:
+            shared.gradio[legacy] = shared.gradio[new]
+        if new not in shared.gradio and legacy in shared.gradio:
+            shared.gradio[new] = shared.gradio[legacy]
 
 
 def create_ui():
@@ -70,6 +143,9 @@ def create_ui():
       <a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer">Notion <span>Pages and databases</span></a>
       <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">Slack <span>Channels and bots</span></a>
       <a href="https://developer.atlassian.com/cloud/jira/platform/getting-started/" target="_blank" rel="noopener noreferrer">Jira <span>Projects and tickets</span></a>
+      <a href="https://www.figma.com/developers/api" target="_blank" rel="noopener noreferrer">Figma <span>Design files and comments</span></a>
+      <a href="https://developer.atlassian.com/cloud/confluence/getting-started/" target="_blank" rel="noopener noreferrer">Confluence/Docs <span>Team knowledge bases</span></a>
+      <a href="#" onclick="window.gizmoGoToTab && window.gizmoGoToTab('🛠 Toolbar'); return false;">Gizmo Toolbar <span>Manage style and connector status</span></a>
     </div>
   </details>
 </div>
@@ -79,6 +155,7 @@ def create_ui():
                         with gr.Row():
                             shared.gradio['Stop'] = gr.Button('Stop', elem_id='stop', visible=False)
                             shared.gradio['Generate'] = gr.Button('Send', elem_id='Generate', variant='primary')
+
 
         # Hover menu buttons
         with gr.Column(elem_id='chat-buttons'):
@@ -91,10 +168,39 @@ def create_ui():
             shared.gradio['send-chat-to-notebook'] = gr.Button('Send to Notebook')
             shared.gradio['show_controls'] = gr.Checkbox(value=shared.settings['show_controls'], label='Show controls (Ctrl+S)', elem_id='show-controls')
 
+        with gr.Row(elem_id='adaptive-toolbar', visible=True):
+            # Visual mock: ✂️ Summarize | 📝 Action items | 🐞 Find bugs | 📎 Create task
+            shared.gradio['adaptive_text'] = gr.Textbox(label='Adaptive input', lines=2)
+            shared.gradio['adaptive_summarize_btn'] = gr.Button('✂️ Summarize', elem_id='adaptive-summarize')
+            shared.gradio['adaptive_actions_btn'] = gr.Button('📝 Action items')
+            shared.gradio['adaptive_bugs_btn'] = gr.Button('🐞 Find bugs')
+            shared.gradio['adaptive_task_btn'] = gr.Button('📎 Create task')
+            shared.gradio['adaptive_output'] = gr.Textbox(label='Adaptive output', lines=4)
+            # Backward-compat key aliases used by older wrappers/extensions
+            shared.gradio['adaptive_summarize'] = shared.gradio['adaptive_summarize_btn']
+            shared.gradio['adaptive_actions'] = shared.gradio['adaptive_actions_btn']
+            shared.gradio['adaptive_bugs'] = shared.gradio['adaptive_bugs_btn']
+            shared.gradio['adaptive_task'] = shared.gradio['adaptive_task_btn']
+            shared.gradio['provenance_btn'] = gr.Button('🕒 Provenance')
+            shared.gradio['provenance_output'] = gr.JSON(label='Provenance timeline')
+
         with gr.Row(elem_id='chat-controls', elem_classes=['pretty_scrollbar']):
             with gr.Column():
                 with gr.Row():
                     shared.gradio['start_with'] = gr.Textbox(label='Start reply with', placeholder='Sure thing!', value=shared.settings['start_with'], elem_classes=['add_scrollbar'])
+
+                with gr.Accordion('Prompt style (local)', open=False):
+                    shared.gradio['custom_style_enabled'] = gr.Checkbox(value=False, label='Enable local style snippet')
+                    shared.gradio['custom_style_prompt'] = gr.Textbox(
+                        label='How the AI should behave',
+                        lines=4,
+                        placeholder='Example: concise, include next steps.',
+                        elem_classes=['add_scrollbar']
+                    )
+                    shared.gradio['apply_lesson_tab_prompt'] = gr.Button('Use Lesson-Tab AI system prompt', elem_classes=['refresh-button'])
+
+                # Minimal optional footer replacing old Google/custom-style footer bar
+                shared.gradio['minimal_footer_html'] = gr.Markdown("<div id='minimal-footer'>Gizmo • privacy-first • optional integrations</div>")
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 
@@ -190,6 +296,9 @@ def create_character_settings_ui():
                 shared.gradio['your_picture'] = gr.Image(label='Your picture', type='filepath', value=Image.open(Path('user_data/cache/pfp_me.png')) if Path('user_data/cache/pfp_me.png').exists() else None, interactive=not mu)
 
 
+    print("[info] registered shared.gradio keys:", list(shared.gradio.keys()))
+
+
 def create_chat_settings_ui():
     mu = shared.args.multi_user
     with gr.Tab('Instruction template'):
@@ -217,6 +326,8 @@ def create_chat_settings_ui():
 
 def create_event_handlers():
 
+    _ensure_adaptive_keys()
+
     # Obsolete variables, kept for compatibility with old extensions
     shared.input_params = gradio(inputs)
     shared.reload_inputs = gradio(reload_arr)
@@ -224,9 +335,51 @@ def create_event_handlers():
     # Morph HTML updates instead of updating everything
     shared.gradio['display'].change(None, gradio('display'), None, js="(data) => handleMorphdomUpdate(data)")
 
+    def _get_any(*keys):
+        for key in keys:
+            if key in shared.gradio:
+                return shared.gradio[key]
+        return None
+
+    def _bind_click(key_options, fn, input_keys, output_keys):
+        target = _get_any(*key_options)
+        if target is None:
+            return
+
+        in_components = []
+        out_components = []
+        for key in (input_keys or []):
+            comp = shared.gradio.get(key)
+            if comp is None:
+                print(f"[warn] missing input component for {key_options}: {key}")
+                return
+            in_components.append(comp)
+
+        for key in (output_keys or []):
+            comp = shared.gradio.get(key)
+            if comp is None:
+                print(f"[warn] missing output component for {key_options}: {key}")
+                return
+            out_components.append(comp)
+
+        try:
+            target.click(
+                fn,
+                inputs=in_components if in_components else None,
+                outputs=out_components if out_components else None,
+                show_progress=False,
+            )
+        except Exception as e:
+            print(f"[warn] binding failed for {key_options}: {e}")
+
     shared.gradio['Generate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        lambda x: (x, {"text": "", "files": []}), gradio('textbox'), gradio('Chat input', 'textbox'), show_progress=False).then(
+        lambda x: x, gradio('textbox'), gradio('Chat input'), show_progress=False).then(
+        apply_custom_ai_style,
+        gradio('Chat input', 'custom_style_enabled', 'custom_style_prompt'),
+        gradio('Chat input'),
+        show_progress=False).then(
+        lambda x: {"text": "", "files": []}, None, gradio('textbox'), show_progress=False).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(
         chat.generate_chat_reply_wrapper, gradio(inputs), gradio('display', 'history'), show_progress=False).then(
         None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.remove("_generating")').then(
@@ -234,11 +387,63 @@ def create_event_handlers():
 
     shared.gradio['textbox'].submit(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        lambda x: (x, {"text": "", "files": []}), gradio('textbox'), gradio('Chat input', 'textbox'), show_progress=False).then(
+        lambda x: x, gradio('textbox'), gradio('Chat input'), show_progress=False).then(
+        apply_custom_ai_style,
+        gradio('Chat input', 'custom_style_enabled', 'custom_style_prompt'),
+        gradio('Chat input'),
+        show_progress=False).then(
+        lambda x: {"text": "", "files": []}, None, gradio('textbox'), show_progress=False).then(
         lambda: None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.add("_generating")').then(
         chat.generate_chat_reply_wrapper, gradio(inputs), gradio('display', 'history'), show_progress=False).then(
         None, None, None, js='() => document.getElementById("chat").parentNode.parentNode.parentNode.classList.remove("_generating")').then(
         None, None, None, js=f'() => {{{ui.audio_notification_js}}}')
+
+    if 'apply_lesson_tab_prompt' in shared.gradio and 'custom_style_enabled' in shared.gradio and 'custom_style_prompt' in shared.gradio:
+        shared.gradio['apply_lesson_tab_prompt'].click(
+            apply_lesson_tab_prompt,
+            None,
+            [shared.gradio['custom_style_enabled'], shared.gradio['custom_style_prompt']],
+            show_progress=False)
+
+
+    if 'adaptive_summarize' in shared.gradio or 'adaptive_summarize_btn' in shared.gradio:
+        try:
+            target = _get_any('adaptive_summarize', 'adaptive_summarize_btn')
+            summarize_input = shared.gradio.get('chatbot_input', shared.gradio.get('adaptive_text'))
+            summarize_output = shared.gradio.get('chatbot_output', shared.gradio.get('adaptive_output'))
+            if target is not None and summarize_input is not None and summarize_output is not None:
+                target.click(
+                    lambda text: summarize_text(text if isinstance(text, str) else ''),
+                    inputs=[summarize_input],
+                    outputs=[summarize_output],
+                    show_progress=False,
+                )
+        except Exception as e:
+            print(f"[warn] adaptive_summarize binding failed: {e}")
+    _bind_click(
+        ('adaptive_actions_btn', 'adaptive_actions'),
+        lambda text: '\n'.join([f"- {line.strip()}" for line in (text or '').split('.') if line.strip()][:5]),
+        ('adaptive_text',),
+        ('adaptive_output',),
+    )
+    _bind_click(
+        ('adaptive_bugs_btn', 'adaptive_bugs'),
+        lambda text: f"Suggestions: {', '.join(suggest_actions(text or ''))}",
+        ('adaptive_text',),
+        ('adaptive_output',),
+    )
+    _bind_click(
+        ('adaptive_task_btn', 'adaptive_task'),
+        lambda text: f"Task created from text: {(text or '')[:120]}",
+        ('adaptive_text',),
+        ('adaptive_output',),
+    )
+    _bind_click(
+        ('provenance_btn',),
+        lambda: list_steps('default_session', 'latest'),
+        (),
+        ('provenance_output',),
+    )
 
     shared.gradio['Regenerate'].click(
         ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(

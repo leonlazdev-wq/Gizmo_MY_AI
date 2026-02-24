@@ -1887,3 +1887,192 @@ thead + tbody tr:first-child th { border-top: 1px solid; }
     font-size: 12px;
     opacity: .8;
 }
+
+/* Native connector details menu (Gradio HTML block) */
+#connector-plus-container {
+    min-width: 44px;
+}
+
+#connector-plus-html .connector-menu-wrapper {
+    position: relative;
+}
+
+#connector-plus-html summary {
+    list-style: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: var(--block-background-fill);
+    font-size: 20px;
+    line-height: 1;
+}
+
+#connector-plus-html summary::-webkit-details-marker {
+    display: none;
+}
+
+#connector-plus-html .connector-menu-panel {
+    position: absolute;
+    right: 0;
+    bottom: 38px;
+    width: 260px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color-primary);
+    background: var(--body-background-fill);
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+    z-index: 90;
+}
+
+#connector-plus-html .connector-menu-title {
+    font-weight: 600;
+    padding: 4px 6px 8px;
+}
+
+#connector-plus-html .connector-menu-panel a {
+    display: block;
+    padding: 7px;
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+}
+
+#connector-plus-html .connector-menu-panel a:hover {
+    background: var(--background-fill-secondary);
+}
+
+#connector-plus-html .connector-menu-panel a span {
+    display: block;
+    font-size: 12px;
+    opacity: .8;
+}
+
+#chat-automation-row {
+    margin-top: 6px;
+    gap: 10px;
+}
+
+#chat-automation-row > .column {
+    min-width: 320px;
+}
+
+/* Lessons tab */
+#lessons-tab {
+    padding-bottom: 24px;
+}
+
+#lessons-tab .gradio-row {
+    gap: 12px;
+}
+
+#lessons-tab .lesson-panel {
+    border: 1px solid var(--border-color-primary);
+    border-radius: 14px;
+    padding: 12px;
+    background: linear-gradient(180deg, var(--body-background-fill) 0%, var(--background-fill-secondary) 100%);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+#lessons-tab .lesson-card {
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    background: var(--background-fill-primary);
+    padding: 10px;
+}
+
+#lessons-tab button.primary {
+    box-shadow: 0 6px 14px rgba(38, 132, 255, 0.28);
+}
+
+#lessons-tab textarea,
+#lessons-tab input,
+#lessons-tab .wrap {
+    border-radius: 10px !important;
+}
+
+#lessons-tab .gradio-column .gradio-column {
+    border: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+/* Workflows tab visual mock:
+   [Planner] -> [WebSearch] -> [Writer]
+*/
+#workflows-tab #workflow-canvas {
+    min-height: 260px;
+    background: #f6f7fb;
+    border: 1px dashed #c5cbe3;
+    border-radius: 12px;
+}
+
+#workflows-tab button,
+#forms-tab button,
+#analytics-tab button,
+#session-tab button {
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+/* Launch modal + floating CTAs */
+#run-demo-cta {
+    position: fixed !important;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    background: #4F46E5 !important;
+}
+
+#feedback-cta {
+    position: fixed !important;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1000;
+}
+
+#whats-new-modal {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    width: 360px;
+    z-index: 1001;
+    border: 1px solid var(--border-color-primary);
+    border-radius: 12px;
+    padding: 12px;
+    background: var(--body-background-fill);
+    box-shadow: 0 10px 25px rgba(0,0,0,.16);
+}
+
+/* hide old Google/custom-style bottom bars if any extension injects them */
+.google-footer,
+.google-workspace-footer,
+.custom-ai-style-footer,
+#old-footer {
+    display: none !important;
+}
+
+#minimal-footer {
+    font-size: 12px;
+    opacity: .7;
+    text-align: center;
+    padding: 8px;
+}
+
+.tour-card {
+    border: 1px dashed #4F46E5;
+    background: #eef2ff;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+body.density-compact .gradio-container * { --size-text: 12px; }
+body.density-comfortable .gradio-container * { --size-text: 14px; }
+body.density-spacious .gradio-container * { --size-text: 16px; }

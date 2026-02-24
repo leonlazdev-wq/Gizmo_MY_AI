@@ -34,6 +34,7 @@ A Gradio web UI for Large Language Models.
 - **Vision (multimodal models)**: Attach images to messages for visual understanding ([tutorial](https://github.com/oobabooga/text-generation-webui/wiki/Multimodal-Tutorial)).
 - **Image generation**: A dedicated tab for `diffusers` models like **Z-Image-Turbo**. Features 4-bit/8-bit quantization and a persistent gallery with metadata ([tutorial](https://github.com/oobabooga/text-generation-webui/wiki/Image-Generation-Tutorial)).
 - **Web search**: Optionally search the internet with LLM-generated queries to add context to the conversation.
+- **Connector quick actions + Google Workspace helpers**: Chat UI includes a "+" connector launcher and optional Google Docs/Slides actions so you can append text to Docs and place images into Slides from the same interface (requires Google API credentials).
 - Aesthetic UI with dark and light themes.
 - Syntax highlighting for code blocks and LaTeX rendering for mathematical expressions.
 - `instruct` mode for instruction-following (like ChatGPT), and `chat-instruct`/`chat` modes for talking to custom characters.

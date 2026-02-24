@@ -56,6 +56,14 @@ from modules import (
     ui_notebook,
     ui_parameters,
     ui_session,
+    ui_lessons,
+    ui_knowledge,
+    ui_workflows,
+    ui_forms,
+    ui_analytics,
+    ui_marketplace,
+    ui_developer,
+    ui_launch,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -158,6 +166,9 @@ def create_interface():
         # Temporary clipboard for saving files
         shared.gradio['temporary_text'] = gr.Textbox(visible=False)
 
+        # Launch overlays / CTA
+        ui_launch.create_ui()
+
         # Chat tab
         ui_chat.create_ui()
 
@@ -173,9 +184,25 @@ def create_interface():
             ui_image_generation.create_ui()  # Image generation tab
             training.create_ui()  # Training tab
         ui_session.create_ui()  # Session tab
+        # Top nav target order: Chat | Workflows | Knowledge Base | Forms | Marketplace | Analytics | Developer
+        ui_workflows.create_ui()  # Workflows tab
+        ui_knowledge.create_ui()  # Knowledge Base tab
+        ui_forms.create_ui()  # Forms tab
+        ui_marketplace.create_ui()  # Marketplace tab
+        ui_analytics.create_ui()  # Analytics tab
+        ui_developer.create_ui()  # Developer tab
+        ui_lessons.create_ui()  # Lessons tab
 
         # Generation events
         ui_chat.create_event_handlers()
+        ui_launch.create_event_handlers()
+        ui_workflows.create_event_handlers()
+        ui_forms.create_event_handlers()
+        ui_marketplace.create_event_handlers()
+        ui_analytics.create_event_handlers()
+        ui_developer.create_event_handlers()
+        ui_lessons.create_event_handlers()
+        ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
         if not shared.args.portable:
@@ -223,6 +250,8 @@ def create_interface():
         )
 
         shared.gradio['interface'].load(partial(ui.apply_interface_values, {}, use_persistent=True), None, gradio(ui.list_interface_input_elements()), show_progress=False)
+
+        shared.gradio['interface'].load(ui_launch.on_app_ready, None, gradio('launch_status', 'whats_new_modal'), show_progress=False)
 
         extensions_module.create_extensions_tabs()  # Extensions tabs
         extensions_module.create_extensions_block()  # Extensions block
