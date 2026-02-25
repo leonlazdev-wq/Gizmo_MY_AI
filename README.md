@@ -669,6 +669,125 @@ Plans are stored in `user_data/study_plans/` and can be reloaded from the **Load
 
 ---
 
+### AI Note-Taker / Cornell Notes Generator
+
+Convert any lecture content, text, or uploaded file into structured Cornell Notes using AI.
+
+#### How to use
+
+1. Open the **📚 AI Note-Taker** tab.
+2. Paste lecture content into the text area, or upload a `.txt`, `.md`, or `.pdf` file.
+3. Choose a **Detail Level** (Brief / Standard / Detailed), optional **Subject Tag**, and **Language**.
+4. Click **📝 Generate Cornell Notes**.
+
+#### Cornell Notes format
+
+The AI organises the content into:
+- **Cue Column** — key questions, terms, and prompts
+- **Notes Column** — detailed notes, explanations, and examples
+- **Summary** — a concise paragraph at the bottom
+
+#### Additional AI actions
+
+- **�� Key Terms** — identify and define the most important concepts
+- **❓ Review Questions** — generate study questions from the notes
+- **📋 Summarize** — produce a standalone summary paragraph
+
+#### Export
+
+| Format | Description |
+|--------|-------------|
+| **Markdown** | `.md` file with full Cornell Notes structure |
+| **HTML** | Self-contained styled HTML file |
+| **JSON** | Raw structured note data |
+| **Google Docs** | Push directly to a new Google Doc (requires Google Docs integration) |
+| **Notion** | Push to Notion (requires Notion integration) |
+
+Notes are saved to `user_data/notes/` and can be reloaded from the **Saved Notes** dropdown.
+
+---
+
+### Pomodoro Timer + Focus Mode
+
+Stay focused with a built-in Pomodoro timer that tracks your study sessions.
+
+#### How to use
+
+1. Open the **📊 Pomodoro Timer** tab.
+2. Optionally expand **⚙️ Settings** to configure work/break durations and add a subject tag.
+3. Click **▶ Start** to begin a work session.
+4. Use **⏸ Pause**, **⏹ Reset**, **⏭ Skip**, and **✅ Complete Session** as needed.
+
+#### Features
+
+- Configurable work duration (default 25 min), short break (5 min), long break (15 min)
+- Automatic phase progression (Work → Short Break → Long Break after N pomodoros)
+- **Stats accordion** shows today's count, this week's total, all-time focus minutes, and current day streak
+- All completed sessions are saved to `user_data/pomodoro_stats.json`
+
+---
+
+### Math/Science Solver
+
+Solve math and science problems with AI-generated step-by-step solutions.
+
+#### How to use
+
+1. Open the **🧮 Math Solver** tab.
+2. Type your problem in the **Problem** box.
+3. Select the **Subject** (Algebra, Calculus, Physics, Chemistry, etc.).
+4. Optionally upload an image of the problem.
+5. Click **🧮 Solve**.
+
+#### Additional actions
+
+- **🔍 Explain Further** — ask the AI to elaborate on a specific step
+- **📝 Similar Problems** — generate 5 practice problems of similar type
+- Solutions are saved to `user_data/math_solutions/` and reloadable from the **History** accordion
+
+---
+
+### AI-Powered Reading List / Literature Review
+
+Generate curated reading lists for any topic and track your reading progress.
+
+#### How to use
+
+1. Open the **📖 Reading List** tab.
+2. Enter a topic or course name and choose how many items to generate.
+3. Click **📖 Generate Reading List**.
+4. Use the **Filter** dropdowns to narrow by difficulty or status.
+5. Use **✏️ Update Item Status** to mark items as *to read*, *in progress*, or *read*.
+6. Click **📋 Generate Literature Review** to produce a synthesis of the reading list.
+
+Reading lists are saved to `user_data/reading_lists/` and loadable from the **Saved Lists** dropdown.
+
+---
+
+### Assignment Tracker
+
+Track all your assignments with due dates, priorities, and AI-estimated time requirements.
+
+#### How to use
+
+1. Open the **🗂️ Assignments** tab.
+2. Expand **➕ Add Assignment** and fill in the name, course, due date, priority, and description.
+3. Optionally click **🤖 Estimate Time** for an AI time estimate.
+4. Click **➕ Add Assignment** to save it.
+
+#### Features
+
+- Color-coded table sorted by due date and priority
+- **Overdue** badge for past-due assignments
+- Filter by course, priority, and status
+- Update status or delete assignments using their ID (shown in the table)
+- **📅 Sync to Google Calendar** — push assignment deadlines as calendar events (requires Google Calendar integration)
+
+Assignments are stored in `user_data/assignments.json`.
+
+---
+
+
 <a id="tutorials"></a>
 ## Tutorials
 

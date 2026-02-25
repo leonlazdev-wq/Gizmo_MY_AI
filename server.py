@@ -83,6 +83,11 @@ from modules import (
     ui_model_compare,
     ui_memory,
     ui_theme_toggle,
+    ui_note_taker,
+    ui_pomodoro,
+    ui_math_solver,
+    ui_reading_list,
+    ui_assignment_tracker,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -232,6 +237,11 @@ def create_interface():
         ui_web_search_tab.create_ui()  # Web Search tab
         ui_model_compare.create_ui()  # Model Compare tab
         ui_memory.create_ui()  # Memory tab
+        ui_note_taker.create_ui()  # AI Note-Taker tab
+        ui_pomodoro.create_ui()  # Pomodoro Timer tab
+        ui_math_solver.create_ui()  # Math Solver tab
+        ui_reading_list.create_ui()  # Reading List tab
+        ui_assignment_tracker.create_ui()  # Assignments tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -260,6 +270,11 @@ def create_interface():
         ui_web_search_tab.create_event_handlers()
         ui_model_compare.create_event_handlers()
         ui_memory.create_event_handlers()
+        ui_note_taker.create_event_handlers()
+        ui_pomodoro.create_event_handlers()
+        ui_math_solver.create_event_handlers()
+        ui_reading_list.create_event_handlers()
+        ui_assignment_tracker.create_event_handlers()
         ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
