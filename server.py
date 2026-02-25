@@ -93,6 +93,7 @@ from modules import (
     ui_gamification,
     ui_essay_writer,
     ui_tts_reader,
+    ui_weekly_planner,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -252,6 +253,7 @@ def create_interface():
         ui_gamification.create_ui()  # Achievements tab
         ui_essay_writer.create_ui()  # Essay Writer tab
         ui_tts_reader.create_ui()  # Read Aloud tab
+        ui_weekly_planner.create_ui()  # Smart Weekly Planner tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -293,6 +295,7 @@ def create_interface():
         ui_gamification.create_event_handlers()
         ui_essay_writer.create_event_handlers()
         ui_tts_reader.create_event_handlers()
+        ui_weekly_planner.create_event_handlers()
         if not shared.args.portable:
             ui_image_generation.create_event_handlers()
 
