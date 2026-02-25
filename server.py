@@ -95,6 +95,7 @@ from modules import (
     ui_essay_writer,
     ui_tts_reader,
     ui_weekly_planner,
+    ui_backup,
     ui_dashboard,
     ui_connector_manager,
     ui_google_drive,
@@ -268,6 +269,7 @@ def create_interface():
         ui_essay_writer.create_ui()  # Essay Writer tab
         ui_tts_reader.create_ui()  # Read Aloud tab
         ui_weekly_planner.create_ui()  # Smart Weekly Planner tab
+        ui_backup.create_ui()  # Backup & Restore tab
 
         # Generation events
         ui_dashboard.create_event_handlers()
@@ -312,6 +314,7 @@ def create_interface():
         ui_essay_writer.create_event_handlers()
         ui_tts_reader.create_event_handlers()
         ui_weekly_planner.create_event_handlers()
+        ui_backup.create_event_handlers()
         ui_connector_manager.create_event_handlers()
         ui_google_drive.create_event_handlers()
         ui_gmail.create_event_handlers()
