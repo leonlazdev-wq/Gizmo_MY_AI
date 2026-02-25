@@ -995,6 +995,11 @@ def create_ui():
             shared.gradio['edit_message_role'] = gr.Textbox(value="", elem_id="Edit-message-role")
             shared.gradio['edit_message'] = gr.Button(elem_id="Edit-message")
 
+        # Chat Folders and Export panels — rendered inside the Chat tab
+        from modules import ui_chat_folders, ui_chat_export
+        ui_chat_folders.create_ui()
+        ui_chat_export.create_ui()
+
 
 def create_character_settings_ui():
     mu = shared.args.multi_user

@@ -227,8 +227,6 @@ def create_interface():
         # Chat tab
         ui_dashboard.create_ui()         # Dashboard tab (first)
         ui_chat.create_ui()
-        ui_chat_folders.create_ui()  # Chat Folders panel (inside chat context)
-        ui_chat_export.create_ui()   # Export Chat panel (inside chat context)
 
         # Notebook tab
         with gr.Tab("Notebook", elem_id='notebook-parent-tab'):
