@@ -13,6 +13,10 @@
 - **Image generation**: A dedicated tab for `diffusers` models like **Z-Image-Turbo**. Features 4-bit/8-bit quantization and a persistent gallery with metadata ([tutorial](https://github.com/oobabooga/text-generation-webui/wiki/Image-Generation-Tutorial)).
 - **Web search**: Optionally search the internet with LLM-generated queries to add context to the conversation.
 - **Connector quick actions + Google Workspace helpers**: Chat UI includes a "+" connector launcher and optional Google Docs/Slides actions so you can append text to Docs and place images into Slides from the same interface (requires Google API credentials).
+- **Google Drive Auto-Save**: Automatically back up all conversations to Google Drive when running in Google Colab ([tutorial](#google-drive-auto-save)).
+- **Model Recommendations Wizard**: A guided wizard that recommends the best model to download based on your use case ([tutorial](#model-recommendations-wizard)).
+- **Usage Dashboard**: A personal stats dashboard showing tokens used, response times, most-used models, and streaks ([tutorial](#usage-dashboard)).
+- **Offline Mode Indicator**: A persistent status bar showing whether a model is loaded and ready, loading, or not available ([tutorial](#offline-mode-indicator)).
 - Aesthetic UI with dark and light themes.
 - Syntax highlighting for code blocks and LaTeX rendering for mathematical expressions.
 - `instruct` mode for instruction-following (like ChatGPT), and `chat-instruct`/`chat` modes for talking to custom characters.
@@ -836,3 +840,51 @@ Save important facts about yourself so the AI remembers them across sessions.
   ```
 - Use **Extract Facts from Text** to paste a conversation and auto-extract facts without chat history.
 - Memories are stored in `user_data/memory.json` and persist across restarts.
+
+---
+
+## New Features
+
+### Google Drive Auto-Save
+
+Automatically back up all Gizmo conversations and settings to your Google Drive when running in Google Colab.
+
+- **How to use:** Open the **Session** tab and expand the **☁️ Google Drive Auto-Save** accordion.
+- If Google Drive is mounted (`/content/drive/MyDrive` exists), the indicator shows "☁️ Google Drive Connected".
+- Enable **Auto-save conversations to Google Drive** to back up after every chat save.
+- Use **☁️ Backup Now** to manually back up all chats and settings.
+- Use **⬇️ Restore from Drive** to restore chats and settings from a previous backup.
+- Backups are saved to `/content/drive/MyDrive/Gizmo_AI_Backups/`.
+- All Drive errors fail silently and never interrupt your chat.
+
+### Model Recommendations Wizard
+
+A friendly wizard that recommends the best model to download based on what you want to do.
+
+- **How to use:** Open the **Model** tab and expand the **🧙 Model Recommendations Wizard** accordion (shown open on first launch).
+- Select your use cases (coding, chat, research, creative writing, etc.).
+- Click **�� Find Models** to see the top 3 recommended models with descriptions, size, and download info.
+- Click **Skip Wizard** to dismiss and not show it open again.
+- The wizard uses a curated catalog of models with use-case matching and RAM filtering.
+
+### Usage Dashboard
+
+A personal stats dashboard showing your usage history, token counts, response times, streaks, and charts.
+
+- **How to use:** Click the **Dashboard** tab in the main navigation.
+- **KPI cards** show: messages today/total, tokens today/total, average response time, and current streak.
+- **Charts** show daily usage trends and token breakdown (input vs output) over the last 30 days.
+- **Details** show most-used model, total chats, total time generating, and first use date.
+- Use **🔄 Refresh** to update the dashboard, **⬇️ Export Stats (JSON)** to download your stats, and **🗑️ Reset Stats** to clear tracking data.
+- Stats are stored in `user_data/usage_stats.json` and tracked automatically after every generation.
+
+### Offline Mode Indicator
+
+A persistent status bar at the top of the interface showing the current model state.
+
+- **States:**
+  - 🟢 **Ready** — Model loaded and ready for generation
+  - 🟡 **Loading** — Model is currently being loaded
+  - 🔴 **No Model** — No model loaded; go to Model tab to load one
+- The status bar is rendered as an HTML element at the top of every page load.
+- It updates automatically when you load or unload a model.

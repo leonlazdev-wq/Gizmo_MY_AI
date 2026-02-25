@@ -22,6 +22,10 @@ def create_ui():
                     shared.gradio['show_minimal_footer'] = gr.Checkbox(label='Show minimal footer', value=shared.settings.get('show_minimal_footer', True))
                     shared.gradio['display_density'] = gr.Dropdown(label='Display density', choices=['Compact', 'Comfortable', 'Spacious'], value=shared.settings.get('display_density', 'Comfortable'))
 
+                # Google Drive Auto-Save panel
+                from modules import ui_drive_sync
+                ui_drive_sync.create_ui()
+
                 gr.Markdown("## Integrations (opt-in)")
                 # Visual mock: [ ] Workflows [ ] Collaboration [ ] Marketplace [ ] SSO [ ] Devtests
                 shared.gradio['enable_workflows'] = gr.Checkbox(label='Enable Workflows', value=shared.settings.get('enable_workflows', False))
@@ -198,6 +202,10 @@ def create_ui():
             shared.gradio['reset_interface'].click(
                 set_interface_arguments, gradio('extensions_menu', 'bool_menu'), None).then(
                 None, None, None, js='() => {document.body.innerHTML=\'<h1 style="font-family:monospace;padding-top:20%;margin:0;height:100vh;color:lightgray;text-align:center;background:var(--body-background-fill)">Reloading...</h1>\'; setTimeout(function(){location.reload()},2500); return []}')
+
+        # Google Drive Auto-Save event handlers
+        from modules import ui_drive_sync
+        ui_drive_sync.create_event_handlers()
 
 
 def handle_save_settings(state, preset, extensions, show_controls, theme):

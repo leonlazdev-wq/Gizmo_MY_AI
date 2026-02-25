@@ -76,6 +76,7 @@ from modules import (
     ui_web_search_tab,
     ui_model_compare,
     ui_memory,
+    ui_usage_dashboard,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -168,6 +169,10 @@ def create_interface():
         # Interface state
         shared.gradio['interface_state'] = gr.State({k: None for k in shared.input_elements})
 
+        # Status indicator bar (always visible at top)
+        from modules.ui_status_indicator import get_model_status
+        shared.gradio['status_indicator'] = gr.HTML(value=get_model_status(), elem_id='status-indicator-wrapper')
+
         # Audio notification
         if Path("user_data/notification.mp3").exists():
             shared.gradio['audio_notification'] = gr.Audio(interactive=False, value="user_data/notification.mp3", elem_id="audio_notification", visible=False)
@@ -216,6 +221,7 @@ def create_interface():
         ui_web_search_tab.create_ui()  # Web Search tab
         ui_model_compare.create_ui()  # Model Compare tab
         ui_memory.create_ui()  # Memory tab
+        ui_usage_dashboard.create_ui()  # Usage Dashboard tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -238,6 +244,7 @@ def create_interface():
         ui_web_search_tab.create_event_handlers()
         ui_model_compare.create_event_handlers()
         ui_memory.create_event_handlers()
+        ui_usage_dashboard.create_event_handlers()
         ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
