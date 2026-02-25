@@ -49,6 +49,8 @@ from modules import (
     training,
     ui,
     ui_chat,
+    ui_chat_folders,
+    ui_chat_export,
     ui_default,
     ui_file_saving,
     ui_image_generation,
@@ -80,6 +82,7 @@ from modules import (
     ui_web_search_tab,
     ui_model_compare,
     ui_memory,
+    ui_theme_toggle,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -169,6 +172,9 @@ def create_interface():
 
     with gr.Blocks(css=css, analytics_enabled=False, title=title, theme=ui.theme) as shared.gradio['interface']:
 
+        # Dark/Light theme toggle button — always visible in top-right corner
+        gr.HTML(ui_theme_toggle.get_html())
+
         # Interface state
         shared.gradio['interface_state'] = gr.State({k: None for k in shared.input_elements})
 
@@ -187,6 +193,8 @@ def create_interface():
 
         # Chat tab
         ui_chat.create_ui()
+        ui_chat_folders.create_ui()  # Chat Folders panel (inside chat context)
+        ui_chat_export.create_ui()   # Export Chat panel (inside chat context)
 
         # Notebook tab
         with gr.Tab("Notebook", elem_id='notebook-parent-tab'):
@@ -227,6 +235,8 @@ def create_interface():
 
         # Generation events
         ui_chat.create_event_handlers()
+        ui_chat_folders.create_event_handlers()  # Chat Folders events
+        ui_chat_export.create_event_handlers()   # Export Chat events
         ui_launch.create_event_handlers()
         ui_workflows.create_event_handlers()
         ui_forms.create_event_handlers()
