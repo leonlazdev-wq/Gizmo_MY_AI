@@ -437,3 +437,97 @@ https://www.reddit.com/r/Oobabooga/
 
 - In August 2023, [Andreessen Horowitz](https://a16z.com/) (a16z) provided a generous grant to encourage and support my independent work on this project. I am **extremely** grateful for their trust and recognition.
 - This project was inspired by [AUTOMATIC1111/stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) and wouldn't exist without it.
+
+---
+
+<a id="connections-integrations"></a>
+## Connections & Integrations
+
+Gizmo supports optional connections to external services. All integrations are **opt-in** — credentials are stored locally and never sent to third parties.
+
+<a id="google-slides-connection"></a>
+### Google Slides Connection
+
+Connect Gizmo to a Google Slides presentation so the AI can view, edit, and create slide content.
+
+#### 1. Set up Google Cloud credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
+2. Enable the **Google Slides API** and **Google Drive API** for the project.
+3. Create a **Service Account**:
+   - Navigate to *IAM & Admin → Service Accounts* and click *Create Service Account*.
+   - Grant the role **Editor** (or a more restrictive custom role with Slides + Drive access).
+   - Click *Keys → Add Key → JSON*. Download the key file and save it somewhere accessible (e.g., `/content/my-service-account.json`).
+4. Share the presentation with the service account email address (visible in the JSON file as `client_email`) with at least **Editor** access.
+
+#### 2. Enable the Google Slides API
+
+In the Google Cloud Console, go to *APIs & Services → Library*, search for **Google Slides API**, and click *Enable*. Do the same for **Google Drive API**.
+
+#### 3. Connect from the UI
+
+1. Open Gizmo and navigate to the **📊 Google Slides** tab.
+2. Paste the presentation URL (e.g. `https://docs.google.com/presentation/d/PRESENTATION_ID/edit`) or just the Presentation ID.
+3. Enter the path to your service account credentials JSON file.
+4. Click **🔌 Connect**.
+
+The status panel will confirm a successful connection and show the presentation title and slide count.
+
+#### 4. Use AI features
+
+Once connected, you can:
+
+- **View slides** — click *🔄 List Slides* to see all slides and their element counts. Click *📖 View Slide Content* to read the text on the active slide.
+- **Add text** — expand *✏️ Add Text*, type your content, optionally adjust position/size (in points), and click *➕ Add Text*.
+- **Add images** — expand *🖼️ Add Image*, provide an image URL, optionally adjust position/size, and click *🖼️ Add Image*.
+- **Change background** — expand *🎨 Change Background*, enter a hex color (e.g. `#4285f4`) or an image URL, and click *🎨 Change Background*.
+- **Screenshot/Preview** — expand *📸 Screenshot / Preview* and click *📸 Take Screenshot* to export the current slide as a PNG so you can review its layout.
+
+> **Tip:** Click the slide selector dropdown to switch between slides before applying any action.
+
+---
+
+<a id="tutorials"></a>
+## Tutorials
+
+<a id="tutorial-google-slides"></a>
+### Tutorial: Google Slides Integration
+
+Follow the [Google Slides Connection](#google-slides-connection) section above for a step-by-step guide.
+
+**Quick start example:**
+
+```python
+# In a Colab notebook, after setting up credentials:
+from modules.google_slides import connect_presentation, add_text_to_slide
+
+msg, info = connect_presentation(
+    "https://docs.google.com/presentation/d/YOUR_ID/edit",
+    "/content/my-service-account.json"
+)
+print(msg)  # ✅ Connected to 'My Presentation' (5 slides).
+
+result = add_text_to_slide(0, "Hello from Gizmo!", {"x": 100, "y": 100, "width": 400, "height": 80})
+print(result)  # ✅ Text added to slide 1.
+```
+
+<a id="tutorial-model-hub"></a>
+### Tutorial: Model Hub & Downloads
+
+1. Open the **Model** tab in Gizmo.
+2. Expand the **🌐 Model Hub** accordion.
+3. Type a model name in the *Search Models* field and click **🔍 Search Hub**.
+4. Enter a model ID (e.g. `TheBloke/Mistral-7B-Instruct-v0.2-GGUF`) in the *Model ID to download* field.
+5. Click **ℹ️ More Info** to see the model's primary use cases (coding, chat, math, etc.).
+6. Click **⬇️ Download model** to start the download with live progress updates.
+
+<a id="tutorial-github-agent"></a>
+### Tutorial: GitHub Agent
+
+1. Expand the **🔧 GitHub Agent** accordion in the Chat tab sidebar.
+2. Enter your repository path and base branch.
+3. Optionally provide a GitHub Personal Access Token (for push/PR creation).
+4. Click **🔌 Connect Repo**.
+5. Click the **🔧 Git** button below the chat input to open the full agent panel.
+6. Select agent roles, describe your task, and click **🚀 Launch Agents**.
+7. When done, click **🔀 Merge All → PR** to push all agent branches and open a PR.

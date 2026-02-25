@@ -748,27 +748,26 @@ def create_ui():
                         )
 
                     with gr.Column(scale=10, elem_id='chat-input-container'):
-        # prettier, larger chat input
+                        # prettier, larger chat input
+                        shared.gradio['textbox'] = gr.Textbox(
+                            label='',
+                            placeholder='Send a message...',
+                            lines=8,
+                            interactive=True,
+                            elem_id='chat-input',
+                            elem_classes=['add_scrollbar', 'ui-chat-textarea'],
+                        )
 
-        shared.gradio['textbox'] = gr.Textbox(
-            label='',
-            placeholder='Send a message...',
-            lines=8,                      # larger input
-            interactive=True,
-            elem_id='chat-input',
-            elem_classes=['add_scrollbar', 'ui-chat-textarea'],
-        )
+                        # typing indicator
+                        shared.gradio['typing-dots'] = gr.HTML(
+                            value='<div id="typing-dots"><span class="dot dot1"></span><span class="dot dot2"></span><span class="dot dot3"></span></div>',
+                            label='typing',
+                            elem_id='typing-container'
+                        )
 
-        # typing indicator (keep original content)
-        shared.gradio['typing-dots'] = gr.HTML(
-            value='<div id="typing-dots"><span class="dot dot1"></span><span class="dot dot2"></span><span class="dot dot3"></span></div>',
-            label='typing',
-            elem_id='typing-container'
-        )
-
-        # relocate the Git toggle button here (so it appears above/near the input)
-        # This replaces the previous definition that was inside the generate-stop-container.
-        shared.gradio['gh_toggle_btn'] = gr.Button('🔧 Git', elem_id='gh-toggle-btn', size='sm', elem_classes=['moved-git-btn'])
+                        # Git toggle button and connector menu
+                        shared.gradio['gh_toggle_btn'] = gr.Button('🔧 Git', elem_id='gh-toggle-btn', size='sm', elem_classes=['moved-git-btn'])
+                        shared.gradio['connector-plus-html'] = gr.HTML(value='''<div id='connector-plus'>
   <details>
     <summary title="Connectors">+</summary>
     <div class="connector-menu-panel">
@@ -897,6 +896,17 @@ def create_ui():
                     shared.gradio['gh_branch_display'] = gr.Textbox(interactive=False, visible=False)
                     shared.gradio['gh_pr_url_display'] = gr.Textbox(interactive=False, visible=False)
                     gr.HTML("<div style='font-size:.8em;color:#555;margin-top:6px'>After connecting, click <b>🔧 Git</b> button below the chat to open the full agent panel.</div>")
+
+                gr.HTML("<div class='sidebar-vertical-separator'></div>")
+
+                gr.HTML(
+                    "<div style='padding:6px 0'>"
+                    "<a href='https://github.com/leonlazdev-wq/Gizmo-my-ai-for-google-colab/blob/main/README.md#tutorials' "
+                    "target='_blank' rel='noopener noreferrer' "
+                    "style='font-size:.88em;color:#8ec8ff;text-decoration:none'>"
+                    "📖 Tutorial &amp; Documentation</a>"
+                    "</div>"
+                )
 
                 gr.HTML("<div class='sidebar-vertical-separator'></div>")
 

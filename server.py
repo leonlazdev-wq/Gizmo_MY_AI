@@ -64,6 +64,7 @@ from modules import (
     ui_marketplace,
     ui_developer,
     ui_launch,
+    ui_google_slides,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -192,6 +193,7 @@ def create_interface():
         ui_analytics.create_ui()  # Analytics tab
         ui_developer.create_ui()  # Developer tab
         ui_lessons.create_ui()  # Lessons tab
+        ui_google_slides.create_ui()  # Google Slides tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -202,6 +204,7 @@ def create_interface():
         ui_analytics.create_event_handlers()
         ui_developer.create_event_handlers()
         ui_lessons.create_event_handlers()
+        ui_google_slides.create_event_handlers()
         ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()

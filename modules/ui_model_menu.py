@@ -37,6 +37,28 @@ def search_hub_models(query, size_filter, quant_filter):
     return MODEL_HUB.format_model_results(models)
 
 
+def get_model_info_html(model_id: str) -> str:
+    """Return an HTML snippet showing model use cases."""
+    clean = (model_id or "").strip()
+    if not clean:
+        return "<p style='color:#888'>Enter a model ID above to see use cases.</p>"
+    info = MODEL_HUB.get_model_use_cases(clean)
+    use_cases = info.get("use_cases", [])
+    source = info.get("source", "")
+    badges = "".join(
+        f"<span style='background:#2a2a2a;border:1px solid #444;border-radius:12px;"
+        f"padding:3px 10px;font-size:.82em;margin:2px;display:inline-block'>{uc}</span>"
+        for uc in use_cases
+    )
+    source_note = f"<span style='font-size:.75em;color:#666'>(source: {source})</span>" if source else ""
+    return (
+        f"<div style='margin:6px 0'>"
+        f"<b style='font-size:.88em;color:#aaa'>Use cases for <code>{clean}</code>:</b> {source_note}<br>"
+        f"<div style='margin-top:4px'>{badges}</div>"
+        f"</div>"
+    )
+
+
 def create_ui():
     mu = shared.args.multi_user
 
@@ -81,7 +103,10 @@ def create_ui():
                         shared.gradio['hub_quant_filter'] = gr.CheckboxGroup(choices=['GGUF', 'GPTQ', 'AWQ', 'EXL2'], label='Quantization')
                     shared.gradio['hub_search_btn'] = gr.Button('🔍 Search Hub', variant='primary')
                     shared.gradio['hub_results'] = gr.HTML(value='<p>Search Hugging Face models.</p>')
-                    shared.gradio['hub_download_model_id'] = gr.Textbox(label='Model ID to download', placeholder='org/model')
+                    with gr.Row():
+                        shared.gradio['hub_download_model_id'] = gr.Textbox(label='Model ID to download', placeholder='org/model', scale=4)
+                        shared.gradio['hub_more_info_btn'] = gr.Button('ℹ️ More Info', size='sm', scale=1)
+                    shared.gradio['hub_model_info'] = gr.HTML(value='')
                     shared.gradio['hub_download_btn'] = gr.Button('⬇️ Download model')
                     shared.gradio['hub_status'] = gr.Textbox(label='Hub status', interactive=False)
 
@@ -242,6 +267,12 @@ def create_event_handlers():
         gradio('hub_download_model_id'),
         gradio('hub_status'),
         show_progress=True,
+    )
+    shared.gradio['hub_more_info_btn'].click(
+        get_model_info_html,
+        gradio('hub_download_model_id'),
+        gradio('hub_model_info'),
+        show_progress=False,
     )
 
 

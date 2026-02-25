@@ -90,3 +90,77 @@ class ModelHub:
             return f"❌ Download failed for {clean}\n{proc.stderr[-800:]}"
         except Exception as exc:
             return f"❌ Download error: {exc}"
+
+    def get_model_use_cases(self, model_id: str) -> Dict:
+        """Return use-case tags for a model.
+
+        First checks a local lookup table, then falls back to the Hugging Face
+        model card tags when the model is not in the table.
+        """
+        # Local lookup: well-known models and their primary use cases
+        _LOCAL: Dict[str, List[str]] = {
+            # Coding
+            "codellama": ["Coding"],
+            "deepseek-coder": ["Coding"],
+            "qwen2.5-coder": ["Coding"],
+            "starcoder": ["Coding"],
+            "wizardcoder": ["Coding"],
+            # Instruction-following / chat
+            "llama-3": ["Instruction following", "Chit-chat"],
+            "llama-2": ["Instruction following", "Chit-chat"],
+            "mistral": ["Instruction following", "Chit-chat"],
+            "mixtral": ["Instruction following", "Chit-chat"],
+            "phi-3": ["Instruction following", "Chit-chat"],
+            "gemma": ["Instruction following", "Chit-chat"],
+            "qwen2.5": ["Instruction following", "Chit-chat"],
+            # Math / Science
+            "deepseek-r1": ["Math/Science", "Research", "Instruction following"],
+            "qwq": ["Math/Science", "Research"],
+            "mathstral": ["Math/Science"],
+            # Creative writing
+            "creative": ["Creative writing"],
+            "storywriter": ["Creative writing"],
+            # Multilingual
+            "bloom": ["Multilingual"],
+            "aya": ["Multilingual"],
+            # Research / reasoning
+            "research": ["Research"],
+        }
+
+        model_lower = (model_id or "").lower()
+        for key, tags in _LOCAL.items():
+            if key in model_lower:
+                return {"model_id": model_id, "use_cases": tags, "source": "local"}
+
+        # Fallback: fetch tags from Hugging Face API
+        try:
+            response = requests.get(
+                f"{self.hf_api}/models/{model_id}",
+                params={"cardData": "true"},
+                timeout=10,
+            )
+            if response.ok:
+                data = response.json()
+                tags = data.get("tags", []) + data.get("cardData", {}).get("tags", [])
+                use_cases = []
+                tag_map = {
+                    "code": "Coding",
+                    "math": "Math/Science",
+                    "science": "Math/Science",
+                    "instruct": "Instruction following",
+                    "chat": "Chit-chat",
+                    "creative": "Creative writing",
+                    "multilingual": "Multilingual",
+                    "research": "Research",
+                }
+                for tag in tags:
+                    tag_l = tag.lower()
+                    for kw, label in tag_map.items():
+                        if kw in tag_l and label not in use_cases:
+                            use_cases.append(label)
+                if use_cases:
+                    return {"model_id": model_id, "use_cases": use_cases, "source": "huggingface"}
+        except Exception:
+            pass
+
+        return {"model_id": model_id, "use_cases": ["General purpose"], "source": "default"}

@@ -4,6 +4,16 @@
 /repositories
 /user_data
 
+# Test artifacts
+/audit/
+/demo/
+/feedback/
+/forms/
+/snapshots/
+/workflows/
+/plugins/
+meta.db
+
 .chroma
 .DS_Store
 .eslintrc.js
