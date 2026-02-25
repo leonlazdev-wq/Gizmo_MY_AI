@@ -82,6 +82,7 @@ from modules import (
     ui_web_search_tab,
     ui_model_compare,
     ui_memory,
+    ui_smart_context,
     ui_theme_toggle,
     ui_note_taker,
     ui_pomodoro,
@@ -242,6 +243,7 @@ def create_interface():
         ui_web_search_tab.create_ui()  # Web Search tab
         ui_model_compare.create_ui()  # Model Compare tab
         ui_memory.create_ui()  # Memory tab
+        ui_smart_context.create_ui()  # Smart Context tab
         ui_note_taker.create_ui()  # AI Note-Taker tab
         ui_pomodoro.create_ui()  # Pomodoro Timer tab
         ui_math_solver.create_ui()  # Math Solver tab
@@ -280,6 +282,7 @@ def create_interface():
         ui_web_search_tab.create_event_handlers()
         ui_model_compare.create_event_handlers()
         ui_memory.create_event_handlers()
+        ui_smart_context.create_event_handlers()
         ui_note_taker.create_event_handlers()
         ui_pomodoro.create_event_handlers()
         ui_math_solver.create_event_handlers()

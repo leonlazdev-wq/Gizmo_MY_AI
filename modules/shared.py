@@ -338,6 +338,21 @@ settings = {
     'image_cpu_offload': False,
     'image_compile': False,
     'image_quant': 'none',
+
+    # Smart Context settings
+    'enable_smart_context': True,
+    'smart_context_sources': {
+        'academic_profile': True,
+        'deadlines': True,
+        'flashcard_status': True,
+        'quiz_scores': True,
+        'study_planner': True,
+        'calendar': True,
+        'classroom': True,
+        'documents': True,
+        'gamification': True,
+    },
+    'smart_context_max_tokens': 1500,
 }
 
 default_settings = copy.deepcopy(settings)

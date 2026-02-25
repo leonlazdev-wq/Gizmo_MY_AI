@@ -1137,6 +1137,80 @@ Save important facts about yourself so the AI remembers them across sessions.
 
 ---
 
+### Smart Context System {#smart-context}
+
+**Tab:** Smart Context
+
+Automatically gathers relevant context from all Gizmo features and injects it into the AI's system prompt — so the AI always knows what you're working on, what's due, and where you need help.
+
+**What It Does:**
+
+Rather than dumping all your data into every message, the Smart Context engine analyzes your message and injects only relevant information:
+
+- **"help me study for tomorrow"** → AI sees tomorrow's calendar, due flashcards, weak quiz subjects
+- **"explain mitosis"** → AI sees your biology course info, cell biology flashcard deck, related quiz scores
+- **"what should I focus on?"** → AI sees all deadlines, weak subjects, unreviewed flashcards, and gives prioritized recommendations
+- **"write me a poem"** → AI gets minimal context (just basic profile), no academic data wasted
+
+**How to Enable / Disable:**
+1. Open the **Smart Context** tab.
+2. Toggle **Enable Smart Context** on or off.
+3. Click **Save Settings**.
+
+When disabled, everything works exactly as before — no impact on existing functionality.
+
+**How to Configure Which Data Sources to Include:**
+
+Use the **Context Sources** checkboxes to choose what data the AI can see:
+
+| Source | Data |
+|---|---|
+| 📚 Academic Profile | Facts from your Memory tab (academic/personal category) |
+| ⏰ Upcoming Deadlines | Assignments due in the next 7 days (from Assignment Tracker) |
+| 🃏 Flashcard Review Status | Decks not reviewed in 3+ days |
+| 📊 Quiz Scores & Weak Subjects | Topics where your average score is below 70% |
+| 📅 Study Planner Sessions | Today's scheduled study sessions |
+| 🗓️ Calendar Events | Google Calendar events (if connected) |
+| 🏫 Google Classroom Data | Courses and assignments (if connected) |
+| 📄 Connected Documents | Open Google Docs, Slides, or PDFs |
+| 🏅 Gamification Stats | XP, streak, level, and recent badges |
+
+**Context Budget (Token Limit):**
+
+Use the **Max tokens** slider (range: 500–3000, default: 1500) to control how much context is injected. Larger values give the AI more detail but use more of your model's context window.
+
+**How to Preview What the AI Sees:**
+
+Click **🔍 Preview Smart Context** to see exactly what context block will be prepended to the AI's system prompt. This helps you understand what the AI knows and tune your settings.
+
+**Example Context Block:**
+```
+[Smart Context — Gizmo knows this about you]
+
+📚 Academic Profile:
+- I am studying biology in 10th grade
+- My school is Lincoln High School
+
+⏰ Upcoming Deadlines:
+- Biology essay [Biology]: due tomorrow
+- Math homework Ch.7 [Math]: due in 3 days (2025-03-04)
+
+🃏 Flashcard Decks Needing Review:
+- "Cell Biology" (20 cards, last reviewed 5 day(s) ago)
+
+📊 Areas Needing Review (quiz scores <70%):
+- Organic Chemistry: 45.0% average score
+- Cell Division: 60.0% average score
+
+🏅 Progress:
+- Level: Scholar (450 XP) | Streak: 5 day(s)
+- Recent badges: First Steps, Perfect Score
+```
+
+**Settings are saved to** `user_data/smart_context_settings.json` and persist across restarts.
+
+---
+
 ### Dark/Light Theme Toggle {#theme-toggle}
 
 **Location:** Fixed button in the top-right corner of every page
