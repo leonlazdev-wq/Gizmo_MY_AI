@@ -1,0 +1,33 @@
+{
+  "id": "6271a647-a37d-4026-bb34-1eed4573f412",
+  "name": "Build draft",
+  "owner": "u1",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "Planner",
+      "params": {}
+    },
+    {
+      "id": "n2",
+      "type": "WebSearch",
+      "params": {}
+    },
+    {
+      "id": "n3",
+      "type": "Writer",
+      "params": {}
+    }
+  ],
+  "edges": [
+    [
+      "n1",
+      "n2"
+    ],
+    [
+      "n2",
+      "n3"
+    ]
+  ],
+  "created_at": "2026-02-25T18:16:36.483429Z"
+}
