@@ -531,3 +531,126 @@ print(result)  # ✅ Text added to slide 1.
 5. Click the **🔧 Git** button below the chat input to open the full agent panel.
 6. Select agent roles, describe your task, and click **🚀 Launch Agents**.
 7. When done, click **🔀 Merge All → PR** to push all agent branches and open a PR.
+
+---
+
+## 🎯 Feature Guide
+
+### Voice Chat {#voice-chat}
+
+**Tab:** Voice Chat
+
+Let users talk to the AI and have it respond with voice — great for accessibility and language learning.
+
+**Setup:**
+```bash
+pip install openai-whisper   # Speech-to-Text
+pip install gTTS             # Text-to-Speech (online)
+# or
+pip install pyttsx3          # Text-to-Speech (offline)
+```
+
+**Usage:**
+1. Open the **Voice Chat** tab.
+2. Click the microphone icon to record your question.
+3. Click **Transcribe & Ask AI** — Whisper will transcribe the audio.
+4. The AI response appears as text and is automatically spoken back using gTTS or pyttsx3.
+5. In **Settings**, choose your STT language, TTS engine, and speech speed.
+
+**Tips:**
+- Use `auto` for language detection (Whisper will detect automatically).
+- `gTTS` requires an internet connection; `pyttsx3` is fully offline.
+- For best Whisper accuracy, use the `small` or `medium` model (edit `voice_chat.py`).
+
+---
+
+### Image Understanding {#image-understanding}
+
+**Tab:** Image Understanding
+
+Drag and drop an image and ask the AI questions about it — ideal for diagrams, math problems, and photos.
+
+**Usage:**
+1. Open the **Image Understanding** tab.
+2. Drag and drop (or click to upload) an image.
+3. Type your question in the text box, or click one of the **Quick Preset** buttons.
+4. Click **Ask AI** to get a response.
+5. Previous Q&A pairs are shown in the **Session History** panel.
+
+**Preset Questions:**
+- *Describe this image* — General visual description
+- *Solve this problem* — For math/science images
+- *Explain this diagram* — For flowcharts, charts, etc.
+- *What text is in this image?* — OCR-style extraction
+
+**Tips:**
+- Multimodal models (those with an `mmproj` file loaded) will use true vision capabilities.
+- Standard LLMs will receive a text-framed prompt — results may vary.
+
+---
+
+### Web Search {#web-search}
+
+**Tab:** Web Search
+
+Search the web in real-time and let the AI synthesize an answer with citations — like a mini Perplexity.
+
+**Usage:**
+1. Open the **Web Search** tab.
+2. Type your search query and click **Search & Ask AI**.
+3. The AI returns a synthesized answer with source citations.
+4. Expand **Raw Search Results** to see individual titles, URLs, and snippets.
+5. Adjust the number of results (3–10) and preferred search engine in the settings row.
+
+**Tips:**
+- Install `duckduckgo-search` for best results: `pip install duckduckgo-search`
+- Falls back to a scraper-based approach if the package is unavailable.
+- Previous searches are stored in **Search History**.
+
+---
+
+### Model Compare {#model-compare}
+
+**Tab:** Model Compare
+
+Ask the same question to two different models simultaneously and compare their answers.
+
+**Usage:**
+1. Open the **Model Compare** tab.
+2. Select **Model A** and **Model B** from the dropdowns.
+3. Type your question and click **Compare**.
+4. Both responses appear side by side with timing and token metadata.
+5. Vote with **👍 A is Better**, **🤝 Tie**, or **👍 B is Better** — votes are saved to `user_data/compare_results.json`.
+
+**Tips:**
+- ⚠️ Switching models loads/unloads them from VRAM — this takes time on large models.
+- Works best when comparing models of similar size.
+- Use the **Comparison History** panel to review past comparisons.
+
+---
+
+### Chat Memory {#chat-memory}
+
+**Tab:** Memory
+
+Save important facts about yourself so the AI remembers them across sessions.
+
+**Usage:**
+1. Open the **Memory** tab.
+2. Type a fact (e.g., *"I am studying biology in 10th grade"*), select a category, and click **Save**.
+3. Enable **Enable Memory** to automatically prepend saved facts to every AI prompt.
+4. Enable **Auto-Extract** to let the AI extract facts from your conversations automatically.
+5. Use the **Search** box to filter memories; use **Delete** to remove individual facts.
+6. **Export** / **Import** buttons let you download or upload `memory.json`.
+
+**Memory Categories:** personal, preferences, academic, work, other
+
+**Tips:**
+- The memory injection format is:
+  ```
+  [User Memory]
+  - The user is studying biology (academic)
+  - The user prefers detailed explanations (preferences)
+  ```
+- Use **Extract Facts from Text** to paste a conversation and auto-extract facts without chat history.
+- Memories are stored in `user_data/memory.json` and persist across restarts.
