@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import time
+from collections import defaultdict
+from functools import wraps
+
 from flask import Flask, jsonify, request
 
 from modules import memory, rag_engine
@@ -25,9 +29,33 @@ def health_check():
         "model_loaded": shared.model is not None,
         "model_name": getattr(shared, 'model_name', None),
     })
+# ---------------------------------------------------------------------------
+# Simple in-memory sliding-window rate limiter
+# ---------------------------------------------------------------------------
+_rate_limit_store: dict = defaultdict(list)
+
+
+def _rate_limit(max_requests: int, window_seconds: int = 60):
+    """Decorator: enforce max_requests per window_seconds per remote IP."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            ip = request.remote_addr or "unknown"
+            now = time.time()
+            cutoff = now - window_seconds
+            timestamps = _rate_limit_store[ip]
+            # Discard timestamps outside the current window
+            _rate_limit_store[ip] = [t for t in timestamps if t > cutoff]
+            if len(_rate_limit_store[ip]) >= max_requests:
+                return jsonify({"error": "Too many requests"}), 429
+            _rate_limit_store[ip].append(now)
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 @app.post('/chat')
+@_rate_limit(max_requests=30)
 def chat_endpoint():
     data = request.get_json(force=True, silent=True) or {}
     prompt = data.get('prompt', '')
@@ -41,12 +69,14 @@ def chat_endpoint():
 
 
 @app.get('/memory')
+@_rate_limit(max_requests=60)
 def memory_list():
     query = request.args.get('q', '')
     return jsonify(memory.retrieve_memory(query, top_k=10))
 
 
 @app.get('/rag')
+@_rate_limit(max_requests=60)
 def rag_list():
     query = request.args.get('q', '')
     return jsonify(rag_engine.retrieve_context(query, top_k=5))

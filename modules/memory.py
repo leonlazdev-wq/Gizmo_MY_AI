@@ -17,6 +17,9 @@ from typing import Dict, List, Optional
 
 MEMORY_PATH = Path("user_data/memory_store.json")
 
+_cache: Optional[List["MemoryItem"]] = None
+_cache_valid: bool = False
+
 
 @dataclass
 class MemoryItem:
@@ -59,7 +62,13 @@ def _cosine(a: Dict[str, float], b: Dict[str, float]) -> float:
 
 
 def _load_all() -> List[MemoryItem]:
+    global _cache, _cache_valid
+    if _cache_valid and _cache is not None:
+        return list(_cache)
+
     if not MEMORY_PATH.exists():
+        _cache = []
+        _cache_valid = True
         return []
 
     raw = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
@@ -67,13 +76,17 @@ def _load_all() -> List[MemoryItem]:
     for item in raw:
         result.append(MemoryItem(**item))
 
-    return result
+    _cache = result
+    _cache_valid = True
+    return list(result)
 
 
 def _save_all(items: List[MemoryItem]) -> None:
+    global _cache_valid
     MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
     serializable = [item.__dict__ for item in items]
     MEMORY_PATH.write_text(json.dumps(serializable, ensure_ascii=False, indent=2), encoding="utf-8")
+    _cache_valid = False
 
 
 def detect_memory_importance(message: str) -> float:

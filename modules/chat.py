@@ -40,6 +40,17 @@ def strftime_now(format):
     return datetime.now().strftime(format)
 
 
+_LOGS_BASE_DIR = Path("user_data/logs").resolve()
+
+
+def _validate_safe_path(path: Path, base_dir: Path = _LOGS_BASE_DIR) -> None:
+    """Raise ValueError if *path* resolves outside *base_dir*."""
+    try:
+        path.resolve().relative_to(base_dir)
+    except ValueError:
+        raise ValueError(f"Unsafe path rejected: '{path}'")
+
+
 def get_current_timestamp():
     """Returns the current time in 24-hour format"""
     return datetime.now().strftime('%b %d, %Y %H:%M')
@@ -1159,6 +1170,7 @@ def get_history_file_path(unique_id, character, mode):
     else:
         p = Path(f'user_data/logs/chat/{character}/{unique_id}.json')
 
+    _validate_safe_path(p)
     return p
 
 
