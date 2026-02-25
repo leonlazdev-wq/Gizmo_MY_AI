@@ -487,6 +487,188 @@ Once connected, you can:
 
 ---
 
+<a id="google-docs-integration"></a>
+### Google Docs Integration
+
+Connect Gizmo to a Google Doc so the AI can read, edit, fix grammar, and summarize document content.
+
+#### 1. Set up Google Cloud credentials
+
+Follow the same service account setup described in the [Google Slides Connection](#google-slides-connection) section. Enable the **Google Docs API** and **Google Drive API** instead of (or in addition to) the Slides API.
+
+#### 2. Connect from the UI
+
+1. Open Gizmo and navigate to the **📝 Google Docs** tab.
+2. Paste the document URL (e.g. `https://docs.google.com/document/d/DOCUMENT_ID/edit`) or just the Document ID.
+3. Enter the path to your service account credentials JSON file.
+4. Click **🔌 Connect**.
+
+#### 3. Available AI features
+
+- **View Document** — read the full document text.
+- **Read Section** — jump to a specific section by heading name.
+- **Insert Text** — add text at the beginning, end, or after a heading.
+- **Find & Replace** — replace text throughout the document.
+- **📝 Fix Grammar** — AI rewrites the document (or a section) with corrected grammar.
+- **📋 Summarize** — AI generates a concise summary of the document.
+- **ℹ️ Document Info** — view title, word count, and last-modified date.
+
+---
+
+<a id="google-sheets-integration"></a>
+### Google Sheets Integration
+
+Connect Gizmo to a Google Spreadsheet so the AI can read data, generate insights, suggest formulas, and write values back.
+
+#### 1. Set up Google Cloud credentials
+
+Follow the same service account setup described in [Google Slides Connection](#google-slides-connection). Enable the **Google Sheets API** and **Google Drive API**.
+
+#### 2. Connect from the UI
+
+1. Open Gizmo and navigate to the **📊 Google Sheets** tab.
+2. Paste the spreadsheet URL or ID.
+3. Enter the path to your service account credentials JSON file.
+4. Click **🔌 Connect**.
+
+#### 3. Available features
+
+- **Data Viewer** — browse sheet data in a table; select active sheet from the dropdown.
+- **Read Range** — fetch a specific cell range (e.g. `Sheet1!A1:D10`).
+- **Write Data** — write values to a range in CSV format.
+- **📈 Analyze Data** — AI summarises trends, statistics, and insights from the active sheet.
+- **🧮 Suggest Formula** — describe what you want in plain English; AI returns the formula.
+- **ℹ️ Info** — view title, sheet count, and metadata.
+
+---
+
+<a id="pdf-reader"></a>
+### PDF Reader
+
+Upload any PDF and use Gizmo's AI to read, search, summarize, and answer questions about the content.
+
+#### How to use
+
+1. Open the **📄 PDF Reader** tab.
+2. Click the upload area and select a `.pdf` file, then click **📂 Load PDF**.
+3. The document info panel shows page count, title, and file size.
+4. Use the page navigator (number input + ◀ ▶ buttons) to browse pages.
+
+#### Available AI features
+
+- **📋 Summarize PDF** — AI generates a summary of the entire document.
+- **📋 Summarize Page** — AI summarises only the currently displayed page.
+- **❓ Ask Question** — type a question and receive an AI answer grounded in the PDF content (RAG-style retrieval).
+- **🔑 Key Sections** — AI identifies and returns the most important passages.
+- **🔍 Search** — find text across all pages; results show page numbers and surrounding context.
+
+> **Note:** The PDF reader uses `PyPDF2` for text extraction. Scanned/image-only PDFs will return little or no text.
+
+---
+
+<a id="flashcard-generator"></a>
+### Flashcard Generator
+
+Generate study flashcards from any topic, pasted notes, or a PDF file using AI.
+
+#### How to generate flashcards
+
+1. Open the **🃏 Flashcards** tab.
+2. Choose an input method:
+   - Type a **topic** (e.g. *"Photosynthesis"*) in the Topic/Subject field.
+   - **Paste your notes** into the notes textarea.
+   - **Upload a PDF** file.
+3. Set the number of cards (5–50) and difficulty level.
+4. Click **🎴 Generate Flashcards**.
+
+#### Study mode
+
+- Cards show the **question** (front) by default.
+- Click **🔄 Flip** to reveal the answer (back).
+- Navigate with **◀ Prev** / **▶ Next**.
+- The card counter shows your current position in the deck.
+
+#### Export formats
+
+| Format | Description |
+|--------|-------------|
+| **Anki** | Tab-separated `.txt` file — import directly into Anki |
+| **CSV** | Standard CSV with `front,back,tags,difficulty` columns |
+| **JSON** | Full flashcard objects for custom use |
+
+#### Saved decks
+
+Type a name and click **💾 Save Deck** to persist a deck to `user_data/flashcards/`. Use the **Load saved deck** dropdown to restore a previous deck.
+
+---
+
+<a id="quiz-mode"></a>
+### Quiz Mode
+
+Test your knowledge with AI-generated quizzes on any topic.
+
+#### How to create a quiz
+
+1. Open the **📝 Quiz Mode** tab.
+2. Enter a **topic** (e.g. *"World War II"*).
+3. Choose the number of questions (5–30) and difficulty level.
+4. Click **🚀 Start Quiz**.
+
+#### Question types
+
+The AI generates a mix of:
+- **Multiple choice** — select the correct answer from radio buttons.
+- **True / False** — quick binary questions.
+- **Short answer** — type a free-form response (AI-graded).
+
+#### Scoring & feedback
+
+- Each answer is checked immediately with ✅ / ❌ feedback and an explanation.
+- After the last question the **Results** panel shows your final score and a full review.
+
+#### Leaderboard & progress
+
+- Scores are saved to `user_data/quiz_results/` automatically.
+- Open the **🏆 Leaderboard** accordion and optionally filter by topic to see top scores.
+- Use the **📊 View Progress** button to review your score history.
+
+---
+
+<a id="study-planner"></a>
+### Study Planner
+
+Let Gizmo create a personalised day-by-day study schedule based on your subjects, exam dates, and available time.
+
+#### How to create a study plan
+
+1. Open the **📅 Study Planner** tab.
+2. In the **➕ Add Subjects** section, enter:
+   - Subject name
+   - Exam date (`YYYY-MM-DD`)
+   - Difficulty (easy / medium / hard)
+   - Confidence level (1–10)
+3. Click **➕ Add Subject** for each subject.
+4. Set your **study hours per day** and optional start date.
+5. Click **📅 Generate Study Plan**.
+
+#### Tracking progress
+
+- Click **📌 Today** to see today's study sessions.
+- Click **📅 This Week** to view the full weekly calendar.
+- Click **📊 Progress** to see your overall completion percentage.
+- If you fall behind, click **🔄 Recalculate** (optionally adjusting available hours) to get an updated schedule.
+
+#### Export formats
+
+| Format | Description |
+|--------|-------------|
+| **CSV** | Schedule as a spreadsheet with date, subject, topic, and duration |
+| **iCal** | `.ics` file — import into Google Calendar, Apple Calendar, or Outlook |
+
+Plans are stored in `user_data/study_plans/` and can be reloaded from the **Load saved plan** dropdown at any time.
+
+---
+
 <a id="tutorials"></a>
 ## Tutorials
 
