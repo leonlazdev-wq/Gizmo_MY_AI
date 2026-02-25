@@ -93,6 +93,7 @@ from modules import (
     ui_collaborative_study,
     ui_gamification,
     ui_essay_writer,
+    ui_email_drafter,
     ui_tts_reader,
     ui_backup,
     ui_dashboard,
@@ -184,6 +185,20 @@ def create_interface():
     js = ui.js
     css += apply_extensions('css')
     js += apply_extensions('js')
+    # Scrollable tab navigation bar
+    css += """
+.tabs > .tab-nav {
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap !important;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+.tabs > .tab-nav > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+"""
 
     # Interface state elements
     shared.input_elements = ui.list_interface_input_elements()
@@ -227,6 +242,69 @@ def create_interface():
         if not shared.args.portable:
             ui_image_generation.create_ui()  # Image generation tab
             training.create_ui()  # Training tab
+
+        # "📚 Study Tools" group
+        with gr.Tab("📚 Study Tools"):
+            with gr.Tabs():
+                ui_lessons.create_ui()
+                ui_flashcards.create_ui()
+                ui_quiz.create_ui()
+                ui_study_planner.create_ui()
+                ui_math_solver.create_ui()
+                ui_collaborative_study.create_ui()
+                ui_gamification.create_ui()
+
+        # "✍️ Writing Tools" group
+        with gr.Tab("✍️ Writing Tools"):
+            with gr.Tabs():
+                ui_essay_writer.create_ui()
+                ui_note_taker.create_ui()
+                ui_translation.create_ui()
+                ui_email_drafter.create_ui()
+
+        # "📖 Reading & Research" group
+        with gr.Tab("📖 Reading & Research"):
+            with gr.Tabs():
+                ui_pdf_reader.create_ui()
+                ui_reading_list.create_ui()
+                ui_web_search_tab.create_ui()
+                ui_image_understanding.create_ui()
+
+        # "🔗 Integrations" group
+        with gr.Tab("🔗 Integrations"):
+            with gr.Tabs():
+                ui_google_slides.create_ui()
+                ui_google_docs.create_ui()
+                ui_google_sheets.create_ui()
+                ui_google_calendar.create_ui()
+                ui_youtube.create_ui()
+                ui_github_chat.create_ui()
+                ui_notion.create_ui()
+                ui_google_drive.create_ui()
+                ui_gmail.create_ui()
+                ui_google_classroom.create_ui()
+                ui_music.create_ui()
+
+        # "🛠️ Utilities" group
+        with gr.Tab("🛠️ Utilities"):
+            with gr.Tabs():
+                ui_voice_chat.create_ui()
+                ui_tts_reader.create_ui()
+                ui_pomodoro.create_ui()
+                ui_assignment_tracker.create_ui()
+                ui_memory.create_ui()
+
+        # "⚙️ Advanced" group
+        with gr.Tab("⚙️ Advanced"):
+            with gr.Tabs():
+                ui_session.create_ui()
+                ui_model_compare.create_ui()
+                ui_workflows.create_ui()
+                ui_knowledge.create_ui()
+                ui_forms.create_ui()
+                ui_marketplace.create_ui()
+                ui_analytics.create_ui()
+                ui_developer.create_ui()
         ui_session.create_ui()  # Session tab
         # Top nav target order: Chat | Workflows | Knowledge Base | Forms | Marketplace | Analytics | Developer
         ui_workflows.create_ui()  # Workflows tab
@@ -310,6 +388,7 @@ def create_interface():
         ui_collaborative_study.create_event_handlers()
         ui_gamification.create_event_handlers()
         ui_essay_writer.create_event_handlers()
+        ui_email_drafter.create_event_handlers()
         ui_tts_reader.create_event_handlers()
         ui_backup.create_event_handlers()
         ui_connector_manager.create_event_handlers()
