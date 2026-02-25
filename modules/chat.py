@@ -137,6 +137,19 @@ def generate_chat_prompt(user_input, state, **kwargs):
             context = replace_character_names(state['context'], state['name1'], state['name2'])
             messages.append({"role": "system", "content": context})
 
+    # Inject Smart Context into the system prompt if enabled
+    if shared.settings.get('enable_smart_context', True):
+        try:
+            from modules.smart_context import get_relevant_context
+            smart_ctx = get_relevant_context(user_input)
+            if smart_ctx:
+                if messages and messages[0]['role'] == 'system':
+                    messages[0]['content'] = smart_ctx + '\n\n' + messages[0]['content']
+                else:
+                    messages.insert(0, {"role": "system", "content": smart_ctx})
+        except Exception as e:
+            logger.debug(f"Smart context error (non-fatal): {e}")
+
     insert_pos = len(messages)
     for i, entry in enumerate(reversed(history)):
         if not entry:
