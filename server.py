@@ -69,6 +69,17 @@ from modules import (
     ui_github_chat,
     ui_notion,
     ui_google_calendar,
+    ui_google_docs,
+    ui_google_sheets,
+    ui_pdf_reader,
+    ui_flashcards,
+    ui_quiz,
+    ui_study_planner,
+    ui_voice_chat,
+    ui_image_understanding,
+    ui_web_search_tab,
+    ui_model_compare,
+    ui_memory,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -202,6 +213,17 @@ def create_interface():
         ui_github_chat.create_ui()     # GitHub Repo Chat tab
         ui_notion.create_ui()          # Notion Integration tab
         ui_google_calendar.create_ui() # Google Calendar tab
+        ui_google_docs.create_ui()  # Google Docs tab
+        ui_google_sheets.create_ui()  # Google Sheets tab
+        ui_pdf_reader.create_ui()  # PDF Reader tab
+        ui_flashcards.create_ui()  # Flashcards tab
+        ui_quiz.create_ui()  # Quiz Mode tab
+        ui_study_planner.create_ui()  # Study Planner tab
+        ui_voice_chat.create_ui()  # Voice Chat tab
+        ui_image_understanding.create_ui()  # Image Understanding tab
+        ui_web_search_tab.create_ui()  # Web Search tab
+        ui_model_compare.create_ui()  # Model Compare tab
+        ui_memory.create_ui()  # Memory tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -217,6 +239,17 @@ def create_interface():
         ui_github_chat.create_event_handlers()
         ui_notion.create_event_handlers()
         ui_google_calendar.create_event_handlers()
+        ui_google_docs.create_event_handlers()
+        ui_google_sheets.create_event_handlers()
+        ui_pdf_reader.create_event_handlers()
+        ui_flashcards.create_event_handlers()
+        ui_quiz.create_event_handlers()
+        ui_study_planner.create_event_handlers()
+        ui_voice_chat.create_event_handlers()
+        ui_image_understanding.create_event_handlers()
+        ui_web_search_tab.create_event_handlers()
+        ui_model_compare.create_event_handlers()
+        ui_memory.create_event_handlers()
         ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
