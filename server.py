@@ -94,6 +94,7 @@ from modules import (
     ui_gamification,
     ui_essay_writer,
     ui_tts_reader,
+    ui_backup,
     ui_dashboard,
     ui_connector_manager,
     ui_google_drive,
@@ -266,6 +267,7 @@ def create_interface():
         ui_gamification.create_ui()  # Achievements tab
         ui_essay_writer.create_ui()  # Essay Writer tab
         ui_tts_reader.create_ui()  # Read Aloud tab
+        ui_backup.create_ui()  # Backup & Restore tab
 
         # Generation events
         ui_dashboard.create_event_handlers()
@@ -309,6 +311,7 @@ def create_interface():
         ui_gamification.create_event_handlers()
         ui_essay_writer.create_event_handlers()
         ui_tts_reader.create_event_handlers()
+        ui_backup.create_event_handlers()
         ui_connector_manager.create_event_handlers()
         ui_google_drive.create_event_handlers()
         ui_gmail.create_event_handlers()

@@ -5,6 +5,7 @@ from __future__ import annotations
 from flask import Flask, jsonify, request
 
 from modules import memory, rag_engine
+from modules.backup_restore import create_backup, restore_backup
 from modules.collab import create_session_share, join_session
 from modules.feature_workflows import run_workflow
 from modules.sso import test_connection
@@ -90,6 +91,28 @@ def flags_get():
 def feedback_post():
     data = request.get_json(force=True, silent=True) or {}
     return jsonify(submit_feedback(data.get('user_id', 'anon'), data.get('session_id', 'default_session'), data.get('text', ''), data.get('file_path', '')))
+
+
+@app.post('/backup')
+def backup_post():
+    """Create a full backup of user_data/ and return the zip file path."""
+    msg, path = create_backup(include_all=True)
+    if path:
+        return jsonify({"status": "ok", "message": msg, "path": path})
+    return jsonify({"status": "error", "message": msg}), 500
+
+
+@app.post('/restore')
+def restore_post():
+    """Restore user data from an uploaded .zip backup."""
+    data = request.get_json(force=True, silent=True) or {}
+    zip_path = data.get('zip_path', '')
+    pre_backup = bool(data.get('pre_backup', True))
+    if not zip_path:
+        return jsonify({"status": "error", "message": "zip_path is required"}), 400
+    msg = restore_backup(zip_path, create_pre_restore_backup=pre_backup)
+    ok = msg.startswith("✅")
+    return jsonify({"status": "ok" if ok else "error", "message": msg}), 200 if ok else 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5005)
