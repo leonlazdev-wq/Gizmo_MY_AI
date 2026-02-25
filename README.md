@@ -1126,3 +1126,897 @@ path = save_export(md, "my_chat.md")
 - PDF export requires `fpdf2`: `pip install fpdf2`
 - If `fpdf2` is not installed, calling `export_as_pdf` raises a clear `ImportError` with install instructions.
 - Filenames are auto-sanitised to remove special characters.
+
+
+==================== THEIRS (automatically appended) ====================
+
+
+## 🔥 News
+
+- The project now supports **image generation**! Including Z-Image-Turbo, 4bit/8bit quantization, `torch.compile`, and LLM-generated prompt variations ([tutorial](https://github.com/oobabooga/text-generation-webui/wiki/Image-Generation-Tutorial)).
+
+## Features
+
+- Supports multiple local text generation backends, including [llama.cpp](https://github.com/ggerganov/llama.cpp), [Transformers](https://github.com/huggingface/transformers), [ExLlamaV3](https://github.com/turboderp-org/exllamav3), [ExLlamaV2](https://github.com/turboderp-org/exllamav2), and [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM) (the latter via its own [Dockerfile](https://github.com/oobabooga/text-generation-webui/blob/main/docker/TensorRT-LLM/Dockerfile)).
+- Easy setup: Choose between **portable builds** (zero setup, just unzip and run) for GGUF models on Windows/Linux/macOS, or the one-click installer that creates a self-contained `installer_files` directory.
+- 100% offline and private, with zero telemetry, external resources, or remote update requests.
+- **File attachments**: Upload text files, PDF documents, and .docx documents to talk about their contents.
+- **Vision (multimodal models)**: Attach images to messages for visual understanding ([tutorial](https://github.com/oobabooga/text-generation-webui/wiki/Multimodal-Tutorial)).
+- **Image generation**: A dedicated tab for `diffusers` models like **Z-Image-Turbo**. Features 4-bit/8-bit quantization and a persistent gallery with metadata ([tutorial](https://github.com/oobabooga/text-generation-webui/wiki/Image-Generation-Tutorial)).
+- **Web search**: Optionally search the internet with LLM-generated queries to add context to the conversation.
+- **Connector quick actions + Google Workspace helpers**: Chat UI includes a "+" connector launcher and optional Google Docs/Slides actions so you can append text to Docs and place images into Slides from the same interface (requires Google API credentials).
+- **Google Drive Auto-Save**: Automatically back up all conversations to Google Drive when running in Google Colab ([tutorial](#google-drive-auto-save)).
+- **Model Recommendations Wizard**: A guided wizard that recommends the best model to download based on your use case ([tutorial](#model-recommendations-wizard)).
+- **Usage Dashboard**: A personal stats dashboard showing tokens used, response times, most-used models, and streaks ([tutorial](#usage-dashboard)).
+- **Offline Mode Indicator**: A persistent status bar showing whether a model is loaded and ready, loading, or not available ([tutorial](#offline-mode-indicator)).
+- Aesthetic UI with dark and light themes.
+- Syntax highlighting for code blocks and LaTeX rendering for mathematical expressions.
+- `instruct` mode for instruction-following (like ChatGPT), and `chat-instruct`/`chat` modes for talking to custom characters.
+- Automatic prompt formatting using Jinja2 templates. You don't need to ever worry about prompt formats.
+- Edit messages, navigate between message versions, and branch conversations at any point.
+- Multiple sampling parameters and generation options for sophisticated text generation control.
+- Switch between different models in the UI without restarting.
+- Automatic GPU layers for GGUF models (on NVIDIA GPUs).
+- Free-form text generation in the Notebook tab without being limited to chat turns.
+- OpenAI-compatible API with Chat and Completions endpoints, including tool-calling support – see [examples](https://github.com/oobabooga/text-generation-webui/wiki/12-%E2%80%90-OpenAI-API#examples).
+- Extension support, with numerous built-in and user-contributed extensions available. See the [wiki](https://github.com/oobabooga/text-generation-webui/wiki/07-%E2%80%90-Extensions) and [extensions directory](https://github.com/oobabooga/text-generation-webui-extensions) for details.
+
+## How to install
+
+#### ✅ Option 1: Portable builds (get started in 1 minute)
+
+No installation needed – just download, unzip and run. All dependencies included.
+
+Compatible with GGUF (llama.cpp) models on Windows, Linux, and macOS.
+
+Download from here: **https://github.com/oobabooga/text-generation-webui/releases**
+
+#### Option 2: Manual portable install with venv
+
+Very fast setup that should work on any Python 3.9+:
+
+```bash
+# Clone repository
+git clone https://github.com/oobabooga/text-generation-webui
+cd text-generation-webui
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies (choose appropriate file under requirements/portable for your hardware)
+pip install -r requirements/portable/requirements.txt --upgrade
+
+# Launch server (basic command)
+python server.py --portable --api --auto-launch
+
+# When done working, deactivate
+deactivate
+```
+
+#### Option 3: One-click installer
+
+For users who need additional backends (ExLlamaV3, Transformers) or extensions (TTS, voice input, translation, etc). Requires ~10GB disk space and downloads PyTorch.
+
+1. Clone the repository, or [download its source code](https://github.com/oobabooga/text-generation-webui/archive/refs/heads/main.zip) and extract it.
+2. Run the startup script for your OS: `start_windows.bat`, `start_linux.sh`, or `start_macos.sh`.
+3. When prompted, select your GPU vendor.
+4. After installation, open `http://127.0.0.1:7860` in your browser.
+
+To restart the web UI later, run the same `start_` script.
+
+You can pass command-line flags directly (e.g., `./start_linux.sh --help`), or add them to `user_data/CMD_FLAGS.txt` (e.g., `--api` to enable the API).
+
+To update, run the update script for your OS: `update_wizard_windows.bat`, `update_wizard_linux.sh`, or `update_wizard_macos.sh`.
+
+To reinstall with a fresh Python environment, delete the `installer_files` folder and run the `start_` script again.
+
+<details>
+<summary>
+One-click installer details
+</summary>
+
+### One-click-installer
+
+The script uses Miniforge to set up a Conda environment in the `installer_files` folder.
+
+If you ever need to install something manually in the `installer_files` environment, you can launch an interactive shell using the cmd script: `cmd_linux.sh`, `cmd_windows.bat`, or `cmd_macos.sh`.
+
+* There is no need to run any of those scripts (`start_`, `update_wizard_`, or `cmd_`) as admin/root.
+* To install requirements for extensions, it is recommended to use the update wizard script with the "Install/update extensions requirements" option. At the end, this script will install the main requirements for the project to make sure that they take precedence in case of version conflicts.
+* For automated installation, you can use the `GPU_CHOICE`, `LAUNCH_AFTER_INSTALL`, and `INSTALL_EXTENSIONS` environment variables. For instance: `GPU_CHOICE=A LAUNCH_AFTER_INSTALL=FALSE INSTALL_EXTENSIONS=TRUE ./start_linux.sh`.
+
+</details>
+
+<details>
+<summary>
+Manual full installation with conda or docker
+</summary>
+
+### Full installation with Conda
+
+#### 0. Install Conda
+
+https://github.com/conda-forge/miniforge
+
+On Linux or WSL, Miniforge can be automatically installed with these two commands:
+
+```
+curl -sL "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" > "Miniforge3.sh"
+bash Miniforge3.sh
+```
+
+For other platforms, download from: https://github.com/conda-forge/miniforge/releases/latest
+
+#### 1. Create a new conda environment
+
+```
+conda create -n textgen python=3.11
+conda activate textgen
+```
+
+#### 2. Install Pytorch
+
+| System | GPU | Command |
+|--------|---------|---------|
+| Linux/WSL | NVIDIA | `pip3 install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128` |
+| Linux/WSL | CPU only | `pip3 install torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu` |
+| Linux | AMD | `pip3 install torch==2.7.1 --index-url https://download.pytorch.org/whl/rocm6.2.4` |
+| MacOS + MPS | Any | `pip3 install torch==2.7.1` |
+| Windows | NVIDIA | `pip3 install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128` |
+| Windows | CPU only | `pip3 install torch==2.7.1` |
+
+The up-to-date commands can be found here: https://pytorch.org/get-started/locally/.
+
+If you need `nvcc` to compile some library manually, you will additionally need to install this:
+
+```
+conda install -y -c "nvidia/label/cuda-12.8.1" cuda
+```
+
+#### 3. Install the web UI
+
+```
+git clone https://github.com/oobabooga/text-generation-webui
+cd text-generation-webui
+pip install -r requirements/full/<requirements file according to table below>
+```
+
+Requirements file to use:
+
+| GPU | CPU | requirements file to use |
+|--------|---------|---------|
+| NVIDIA | has AVX2 | `requirements.txt` |
+| NVIDIA | no AVX2 | `requirements_noavx2.txt` |
+| AMD | has AVX2 | `requirements_amd.txt` |
+| AMD | no AVX2 | `requirements_amd_noavx2.txt` |
+| CPU only | has AVX2 | `requirements_cpu_only.txt` |
+| CPU only | no AVX2 | `requirements_cpu_only_noavx2.txt` |
+| Apple | Intel | `requirements_apple_intel.txt` |
+| Apple | Apple Silicon | `requirements_apple_silicon.txt` |
+
+### Start the web UI
+
+```
+conda activate textgen
+cd text-generation-webui
+python server.py
+```
+
+Then browse to
+
+`http://127.0.0.1:7860`
+
+#### Manual install
+
+The `requirements*.txt` above contain various wheels precompiled through GitHub Actions. If you wish to compile things manually, or if you need to because no suitable wheels are available for your hardware, you can use `requirements_nowheels.txt` and then install your desired loaders manually.
+
+### Alternative: Docker
+
+```
+For NVIDIA GPU:
+ln -s docker/{nvidia/Dockerfile,nvidia/docker-compose.yml,.dockerignore} .
+For AMD GPU:
+ln -s docker/{amd/Dockerfile,amd/docker-compose.yml,.dockerignore} .
+For Intel GPU:
+ln -s docker/{intel/Dockerfile,amd/docker-compose.yml,.dockerignore} .
+For CPU only
+ln -s docker/{cpu/Dockerfile,cpu/docker-compose.yml,.dockerignore} .
+cp docker/.env.example .env
+#Create logs/cache dir :
+mkdir -p user_data/logs user_data/cache
+# Edit .env and set:
+#   TORCH_CUDA_ARCH_LIST based on your GPU model
+#   APP_RUNTIME_GID      your host user's group id (run `id -g` in a terminal)
+#   BUILD_EXTENIONS      optionally add comma separated list of extensions to build
+# Edit user_data/CMD_FLAGS.txt and add in it the options you want to execute (like --listen --cpu)
+#
+docker compose up --build
+```
+
+* You need to have Docker Compose v2.17 or higher installed. See [this guide](https://github.com/oobabooga/text-generation-webui/wiki/09-%E2%80%90-Docker) for instructions.
+* For additional docker files, check out [this repository](https://github.com/Atinoda/text-generation-webui-docker).
+
+### Updating the requirements
+
+From time to time, the `requirements*.txt` change. To update, use these commands:
+
+```
+conda activate textgen
+cd text-generation-webui
+pip install -r <requirements file that you have used> --upgrade
+```
+</details>
+
+<details>
+<summary>
+List of command-line flags
+</summary>
+
+```txt
+usage: server.py [-h] [--multi-user] [--model MODEL] [--lora LORA [LORA ...]] [--model-dir MODEL_DIR] [--lora-dir LORA_DIR] [--model-menu] [--settings SETTINGS]
+                 [--extensions EXTENSIONS [EXTENSIONS ...]] [--verbose] [--idle-timeout IDLE_TIMEOUT] [--loader LOADER] [--ctx-size N] [--cache-type N] [--model-draft MODEL_DRAFT]
+                 [--draft-max DRAFT_MAX] [--gpu-layers-draft GPU_LAYERS_DRAFT] [--device-draft DEVICE_DRAFT] [--ctx-size-draft CTX_SIZE_DRAFT] [--gpu-layers N] [--mmproj MMPROJ] [--streaming-llm]
+                 [--tensor-split TENSOR_SPLIT] [--row-split] [--no-mmap] [--mlock] [--no-kv-offload] [--batch-size BATCH_SIZE] [--threads THREADS] [--threads-batch THREADS_BATCH] [--numa]
+                 [--extra-flags EXTRA_FLAGS] [--cpu] [--cpu-memory CPU_MEMORY] [--disk] [--disk-cache-dir DISK_CACHE_DIR] [--load-in-8bit] [--bf16] [--no-cache] [--trust-remote-code]
+                 [--force-safetensors] [--no_use_fast] [--attn-implementation IMPLEMENTATION] [--load-in-4bit] [--use_double_quant] [--compute_dtype COMPUTE_DTYPE] [--quant_type QUANT_TYPE]
+                 [--enable-tp] [--tp-backend TP_BACKEND] [--gpu-split GPU_SPLIT] [--autosplit] [--cfg-cache] [--no_flash_attn] [--no_xformers] [--no_sdpa] [--num_experts_per_token N] [--cpp-runner]
+                 [--deepspeed] [--nvme-offload-dir NVME_OFFLOAD_DIR] [--local_rank LOCAL_RANK] [--alpha_value ALPHA_VALUE] [--rope_freq_base ROPE_FREQ_BASE] [--compress_pos_emb COMPRESS_POS_EMB]
+                 [--listen] [--listen-port LISTEN_PORT] [--listen-host LISTEN_HOST] [--share] [--auto-launch] [--gradio-auth GRADIO_AUTH] [--gradio-auth-path GRADIO_AUTH_PATH]
+                 [--ssl-keyfile SSL_KEYFILE] [--ssl-certfile SSL_CERTFILE] [--subpath SUBPATH] [--old-colors] [--portable] [--api] [--public-api] [--public-api-id PUBLIC_API_ID] [--api-port API_PORT]
+                 [--api-key API_KEY] [--admin-key ADMIN_KEY] [--api-enable-ipv6] [--api-disable-ipv4] [--nowebui]
+
+Text Generation Web UI
+
+options:
+  -h, --help                                show this help message and exit
+
+Basic settings:
+  --multi-user                              Multi-user mode. Chat histories are not saved or automatically loaded. Warning: this is likely not safe for sharing publicly.
+  --model MODEL                             Name of the model to load by default.
+  --lora LORA [LORA ...]                    The list of LoRAs to load. If you want to load more than one LoRA, write the names separated by spaces.
+  --model-dir MODEL_DIR                     Path to directory with all the models.
+  --lora-dir LORA_DIR                       Path to directory with all the loras.
+  --model-menu                              Show a model menu in the terminal when the web UI is first launched.
+  --settings SETTINGS                       Load the default interface settings from this yaml file. See user_data/settings-template.yaml for an example. If you create a file called
+                                            user_data/settings.yaml, this file will be loaded by default without the need to use the --settings flag.
+  --extensions EXTENSIONS [EXTENSIONS ...]  The list of extensions to load. If you want to load more than one extension, write the names separated by spaces.
+  --verbose                                 Print the prompts to the terminal.
+  --idle-timeout IDLE_TIMEOUT               Unload model after this many minutes of inactivity. It will be automatically reloaded when you try to use it again.
+
+Model loader:
+  --loader LOADER                           Choose the model loader manually, otherwise, it will get autodetected. Valid options: Transformers, llama.cpp, ExLlamav3_HF, ExLlamav2_HF, ExLlamav2,
+                                            TensorRT-LLM.
+
+Context and cache:
+  --ctx-size N, --n_ctx N, --max_seq_len N  Context size in tokens.
+  --cache-type N, --cache_type N            KV cache type; valid options: llama.cpp - fp16, q8_0, q4_0; ExLlamaV2 - fp16, fp8, q8, q6, q4; ExLlamaV3 - fp16, q2 to q8 (can specify k_bits and v_bits
+                                            separately, e.g. q4_q8).
+
+Speculative decoding:
+  --model-draft MODEL_DRAFT                 Path to the draft model for speculative decoding.
+  --draft-max DRAFT_MAX                     Number of tokens to draft for speculative decoding.
+  --gpu-layers-draft GPU_LAYERS_DRAFT       Number of layers to offload to the GPU for the draft model.
+  --device-draft DEVICE_DRAFT               Comma-separated list of devices to use for offloading the draft model. Example: CUDA0,CUDA1
+  --ctx-size-draft CTX_SIZE_DRAFT           Size of the prompt context for the draft model. If 0, uses the same as the main model.
+
+llama.cpp:
+  --gpu-layers N, --n-gpu-layers N          Number of layers to offload to the GPU.
+  --mmproj MMPROJ                           Path to the mmproj file for vision models.
+  --streaming-llm                           Activate StreamingLLM to avoid re-evaluating the entire prompt when old messages are removed.
+  --tensor-split TENSOR_SPLIT               Split the model across multiple GPUs. Comma-separated list of proportions. Example: 60,40.
+  --row-split                               Split the model by rows across GPUs. This may improve multi-gpu performance.
+  --no-mmap                                 Prevent mmap from being used.
+  --mlock                                   Force the system to keep the model in RAM.
+  --no-kv-offload                           Do not offload the K, Q, V to the GPU. This saves VRAM but reduces the performance.
+  --batch-size BATCH_SIZE                   Maximum number of prompt tokens to batch together when calling llama_eval.
+  --threads THREADS                         Number of threads to use.
+  --threads-batch THREADS_BATCH             Number of threads to use for batches/prompt processing.
+  --numa                                    Activate NUMA task allocation for llama.cpp.
+  --extra-flags EXTRA_FLAGS                 Extra flags to pass to llama-server. Format: "flag1=value1,flag2,flag3=value3". Example: "override-tensor=exps=CPU"
+
+Transformers/Accelerate:
+  --cpu                                     Use the CPU to generate text. Warning: Training on CPU is extremely slow.
+  --cpu-memory CPU_MEMORY                   Maximum CPU memory in GiB. Use this for CPU offloading.
+  --disk                                    If the model is too large for your GPU(s) and CPU combined, send the remaining layers to the disk.
+  --disk-cache-dir DISK_CACHE_DIR           Directory to save the disk cache to. Defaults to "user_data/cache".
+  --load-in-8bit                            Load the model with 8-bit precision (using bitsandbytes).
+  --bf16                                    Load the model with bfloat16 precision. Requires NVIDIA Ampere GPU.
+  --no-cache                                Set use_cache to False while generating text. This reduces VRAM usage slightly, but it comes at a performance cost.
+  --trust-remote-code                       Set trust_remote_code=True while loading the model. Necessary for some models.
+  --force-safetensors                       Set use_safetensors=True while loading the model. This prevents arbitrary code execution.
+  --no_use_fast                             Set use_fast=False while loading the tokenizer (it's True by default). Use this if you have any problems related to use_fast.
+  --attn-implementation IMPLEMENTATION      Attention implementation. Valid options: sdpa, eager, flash_attention_2.
+
+bitsandbytes 4-bit:
+  --load-in-4bit                            Load the model with 4-bit precision (using bitsandbytes).
+  --use_double_quant                        use_double_quant for 4-bit.
+  --compute_dtype COMPUTE_DTYPE             compute dtype for 4-bit. Valid options: bfloat16, float16, float32.
+  --quant_type QUANT_TYPE                   quant_type for 4-bit. Valid options: nf4, fp4.
+
+ExLlamaV3:
+  --enable-tp, --enable_tp                  Enable Tensor Parallelism (TP) to split the model across GPUs.
+  --tp-backend TP_BACKEND                   The backend for tensor parallelism. Valid options: native, nccl. Default: native.
+
+ExLlamaV2:
+  --gpu-split GPU_SPLIT                     Comma-separated list of VRAM (in GB) to use per GPU device for model layers. Example: 20,7,7.
+  --autosplit                               Autosplit the model tensors across the available GPUs. This causes --gpu-split to be ignored.
+  --cfg-cache                               ExLlamav2_HF: Create an additional cache for CFG negative prompts. Necessary to use CFG with that loader.
+  --no_flash_attn                           Force flash-attention to not be used.
+  --no_xformers                             Force xformers to not be used.
+  --no_sdpa                                 Force Torch SDPA to not be used.
+  --num_experts_per_token N                 Number of experts to use for generation. Applies to MoE models like Mixtral.
+
+TensorRT-LLM:
+  --cpp-runner                              Use the ModelRunnerCpp runner, which is faster than the default ModelRunner but doesn't support streaming yet.
+
+DeepSpeed:
+  --deepspeed                               Enable the use of DeepSpeed ZeRO-3 for inference via the Transformers integration.
+  --nvme-offload-dir NVME_OFFLOAD_DIR       DeepSpeed: Directory to use for ZeRO-3 NVME offloading.
+  --local_rank LOCAL_RANK                   DeepSpeed: Optional argument for distributed setups.
+
+RoPE:
+  --alpha_value ALPHA_VALUE                 Positional embeddings alpha factor for NTK RoPE scaling. Use either this or compress_pos_emb, not both.
+  --rope_freq_base ROPE_FREQ_BASE           If greater than 0, will be used instead of alpha_value. Those two are related by rope_freq_base = 10000 * alpha_value ^ (64 / 63).
+  --compress_pos_emb COMPRESS_POS_EMB       Positional embeddings compression factor. Should be set to (context length) / (model's original context length). Equal to 1/rope_freq_scale.
+
+Gradio:
+  --listen                                  Make the web UI reachable from your local network.
+  --listen-port LISTEN_PORT                 The listening port that the server will use.
+  --listen-host LISTEN_HOST                 The hostname that the server will use.
+  --share                                   Create a public URL. This is useful for running the web UI on Google Colab or similar.
+  --auto-launch                             Open the web UI in the default browser upon launch.
+  --gradio-auth GRADIO_AUTH                 Set Gradio authentication password in the format "username:password". Multiple credentials can also be supplied with "u1:p1,u2:p2,u3:p3".
+  --gradio-auth-path GRADIO_AUTH_PATH       Set the Gradio authentication file path. The file should contain one or more user:password pairs in the same format as above.
+  --ssl-keyfile SSL_KEYFILE                 The path to the SSL certificate key file.
+  --ssl-certfile SSL_CERTFILE               The path to the SSL certificate cert file.
+  --subpath SUBPATH                         Customize the subpath for gradio, use with reverse proxy
+  --old-colors                              Use the legacy Gradio colors, before the December/2024 update.
+  --portable                                Hide features not available in portable mode like training.
+
+API:
+  --api                                     Enable the API extension.
+  --public-api                              Create a public URL for the API using Cloudfare.
+  --public-api-id PUBLIC_API_ID             Tunnel ID for named Cloudflare Tunnel. Use together with public-api option.
+  --api-port API_PORT                       The listening port for the API.
+  --api-key API_KEY                         API authentication key.
+  --admin-key ADMIN_KEY                     API authentication key for admin tasks like loading and unloading models. If not set, will be the same as --api-key.
+  --api-enable-ipv6                         Enable IPv6 for the API
+  --api-disable-ipv4                        Disable IPv4 for the API
+  --nowebui                                 Do not launch the Gradio UI. Useful for launching the API in standalone mode.
+```
+
+</details>
+
+## Downloading models
+
+Models should be placed in the folder `text-generation-webui/user_data/models`. They are usually downloaded from [Hugging Face](https://huggingface.co/models?pipeline_tag=text-generation&sort=downloads&search=gguf).
+
+To check if a GGUF model will fit in your hardware before downloading it, you can use this tool I created:
+
+[Accurate GGUF VRAM Calculator](https://huggingface.co/spaces/oobabooga/accurate-gguf-vram-calculator)
+
+* GGUF models are a single file and should be placed directly into `user_data/models`. Example:
+
+```
+text-generation-webui
+└── user_data
+    └── models
+        └── llama-2-13b-chat.Q4_K_M.gguf
+```
+
+* The remaining model types (like 16-bit Transformers models and EXL3 models) are made of several files and must be placed in a subfolder. Example:
+
+```
+text-generation-webui
+└── user_data
+    └── models
+        └── lmsys_vicuna-33b-v1.3
+            ├── config.json
+            ├── generation_config.json
+            ├── pytorch_model-00001-of-00007.bin
+            ├── pytorch_model-00002-of-00007.bin
+            ├── pytorch_model-00003-of-00007.bin
+            ├── pytorch_model-00004-of-00007.bin
+            ├── pytorch_model-00005-of-00007.bin
+            ├── pytorch_model-00006-of-00007.bin
+            ├── pytorch_model-00007-of-00007.bin
+            ├── pytorch_model.bin.index.json
+            ├── special_tokens_map.json
+            ├── tokenizer_config.json
+            └── tokenizer.model
+```
+
+In both cases, you can use the "Model" tab of the UI to download the model from Hugging Face automatically. It is also possible to download it via the command-line with:
+
+```
+python download-model.py organization/model
+```
+
+Run `python download-model.py --help` to see all the options.
+
+## Documentation
+
+https://github.com/oobabooga/text-generation-webui/wiki
+
+
+### Colab lesson tabs compatibility (no full web server required)
+
+If you want to quickly validate the new lesson tabs and utility features directly inside a Colab cell, use the compatibility helper:
+
+```python
+from modules.colab_compat import run_colab_feature_smoke_test, display_lesson_tabs_in_colab
+
+print(run_colab_feature_smoke_test())  # dependency + import checks
+display_lesson_tabs_in_colab()         # renders notebook-safe lesson tabs
+```
+
+What this checks:
+- Frontend notebook dependencies (`IPython.display`, `google.colab` when available).
+- Importability of recent extension tabs (`learning_center`, `student_utils`, `model_hub`).
+- Rendering of a notebook-safe tab UI via `IPython.display.display(HTML(...))`.
+
+## Google Colab notebook
+
+https://colab.research.google.com/github/oobabooga/text-generation-webui/blob/main/Colab-TextGen-GPU.ipynb
+
+## Community
+
+https://www.reddit.com/r/Oobabooga/
+
+## Acknowledgments
+
+- In August 2023, [Andreessen Horowitz](https://a16z.com/) (a16z) provided a generous grant to encourage and support my independent work on this project. I am **extremely** grateful for their trust and recognition.
+- This project was inspired by [AUTOMATIC1111/stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) and wouldn't exist without it.
+
+---
+
+<a id="connections-integrations"></a>
+## Connections & Integrations
+
+Gizmo supports optional connections to external services. All integrations are **opt-in** — credentials are stored locally and never sent to third parties.
+
+<a id="google-slides-connection"></a>
+### Google Slides Connection
+
+Connect Gizmo to a Google Slides presentation so the AI can view, edit, and create slide content.
+
+#### 1. Set up Google Cloud credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create or select a project.
+2. Enable the **Google Slides API** and **Google Drive API** for the project.
+3. Create a **Service Account**:
+   - Navigate to *IAM & Admin → Service Accounts* and click *Create Service Account*.
+   - Grant the role **Editor** (or a more restrictive custom role with Slides + Drive access).
+   - Click *Keys → Add Key → JSON*. Download the key file and save it somewhere accessible (e.g., `/content/my-service-account.json`).
+4. Share the presentation with the service account email address (visible in the JSON file as `client_email`) with at least **Editor** access.
+
+#### 2. Enable the Google Slides API
+
+In the Google Cloud Console, go to *APIs & Services → Library*, search for **Google Slides API**, and click *Enable*. Do the same for **Google Drive API**.
+
+#### 3. Connect from the UI
+
+1. Open Gizmo and navigate to the **📊 Google Slides** tab.
+2. Paste the presentation URL (e.g. `https://docs.google.com/presentation/d/PRESENTATION_ID/edit`) or just the Presentation ID.
+3. Enter the path to your service account credentials JSON file.
+4. Click **🔌 Connect**.
+
+The status panel will confirm a successful connection and show the presentation title and slide count.
+
+#### 4. Use AI features
+
+Once connected, you can:
+
+- **View slides** — click *🔄 List Slides* to see all slides and their element counts. Click *📖 View Slide Content* to read the text on the active slide.
+- **Add text** — expand *✏️ Add Text*, type your content, optionally adjust position/size (in points), and click *➕ Add Text*.
+- **Add images** — expand *🖼️ Add Image*, provide an image URL, optionally adjust position/size, and click *🖼️ Add Image*.
+- **Change background** — expand *🎨 Change Background*, enter a hex color (e.g. `#4285f4`) or an image URL, and click *🎨 Change Background*.
+- **Screenshot/Preview** — expand *📸 Screenshot / Preview* and click *📸 Take Screenshot* to export the current slide as a PNG so you can review its layout.
+
+> **Tip:** Click the slide selector dropdown to switch between slides before applying any action.
+
+---
+
+<a id="google-docs-integration"></a>
+### Google Docs Integration
+
+Connect Gizmo to a Google Doc so the AI can read, edit, fix grammar, and summarize document content.
+
+#### 1. Set up Google Cloud credentials
+
+Follow the same service account setup described in the [Google Slides Connection](#google-slides-connection) section. Enable the **Google Docs API** and **Google Drive API** instead of (or in addition to) the Slides API.
+
+#### 2. Connect from the UI
+
+1. Open Gizmo and navigate to the **📝 Google Docs** tab.
+2. Paste the document URL (e.g. `https://docs.google.com/document/d/DOCUMENT_ID/edit`) or just the Document ID.
+3. Enter the path to your service account credentials JSON file.
+4. Click **🔌 Connect**.
+
+#### 3. Available AI features
+
+- **View Document** — read the full document text.
+- **Read Section** — jump to a specific section by heading name.
+- **Insert Text** — add text at the beginning, end, or after a heading.
+- **Find & Replace** — replace text throughout the document.
+- **📝 Fix Grammar** — AI rewrites the document (or a section) with corrected grammar.
+- **📋 Summarize** — AI generates a concise summary of the document.
+- **ℹ️ Document Info** — view title, word count, and last-modified date.
+
+---
+
+<a id="google-sheets-integration"></a>
+### Google Sheets Integration
+
+Connect Gizmo to a Google Spreadsheet so the AI can read data, generate insights, suggest formulas, and write values back.
+
+#### 1. Set up Google Cloud credentials
+
+Follow the same service account setup described in [Google Slides Connection](#google-slides-connection). Enable the **Google Sheets API** and **Google Drive API**.
+
+#### 2. Connect from the UI
+
+1. Open Gizmo and navigate to the **📊 Google Sheets** tab.
+2. Paste the spreadsheet URL or ID.
+3. Enter the path to your service account credentials JSON file.
+4. Click **🔌 Connect**.
+
+#### 3. Available features
+
+- **Data Viewer** — browse sheet data in a table; select active sheet from the dropdown.
+- **Read Range** — fetch a specific cell range (e.g. `Sheet1!A1:D10`).
+- **Write Data** — write values to a range in CSV format.
+- **📈 Analyze Data** — AI summarises trends, statistics, and insights from the active sheet.
+- **🧮 Suggest Formula** — describe what you want in plain English; AI returns the formula.
+- **ℹ️ Info** — view title, sheet count, and metadata.
+
+---
+
+<a id="pdf-reader"></a>
+### PDF Reader
+
+Upload any PDF and use Gizmo's AI to read, search, summarize, and answer questions about the content.
+
+#### How to use
+
+1. Open the **📄 PDF Reader** tab.
+2. Click the upload area and select a `.pdf` file, then click **📂 Load PDF**.
+3. The document info panel shows page count, title, and file size.
+4. Use the page navigator (number input + ◀ ▶ buttons) to browse pages.
+
+#### Available AI features
+
+- **📋 Summarize PDF** — AI generates a summary of the entire document.
+- **📋 Summarize Page** — AI summarises only the currently displayed page.
+- **❓ Ask Question** — type a question and receive an AI answer grounded in the PDF content (RAG-style retrieval).
+- **🔑 Key Sections** — AI identifies and returns the most important passages.
+- **🔍 Search** — find text across all pages; results show page numbers and surrounding context.
+
+> **Note:** The PDF reader uses `PyPDF2` for text extraction. Scanned/image-only PDFs will return little or no text.
+
+---
+
+<a id="flashcard-generator"></a>
+### Flashcard Generator
+
+Generate study flashcards from any topic, pasted notes, or a PDF file using AI.
+
+#### How to generate flashcards
+
+1. Open the **🃏 Flashcards** tab.
+2. Choose an input method:
+   - Type a **topic** (e.g. *"Photosynthesis"*) in the Topic/Subject field.
+   - **Paste your notes** into the notes textarea.
+   - **Upload a PDF** file.
+3. Set the number of cards (5–50) and difficulty level.
+4. Click **🎴 Generate Flashcards**.
+
+#### Study mode
+
+- Cards show the **question** (front) by default.
+- Click **🔄 Flip** to reveal the answer (back).
+- Navigate with **◀ Prev** / **▶ Next**.
+- The card counter shows your current position in the deck.
+
+#### Export formats
+
+| Format | Description |
+|--------|-------------|
+| **Anki** | Tab-separated `.txt` file — import directly into Anki |
+| **CSV** | Standard CSV with `front,back,tags,difficulty` columns |
+| **JSON** | Full flashcard objects for custom use |
+
+#### Saved decks
+
+Type a name and click **💾 Save Deck** to persist a deck to `user_data/flashcards/`. Use the **Load saved deck** dropdown to restore a previous deck.
+
+---
+
+<a id="quiz-mode"></a>
+### Quiz Mode
+
+Test your knowledge with AI-generated quizzes on any topic.
+
+#### How to create a quiz
+
+1. Open the **📝 Quiz Mode** tab.
+2. Enter a **topic** (e.g. *"World War II"*).
+3. Choose the number of questions (5–30) and difficulty level.
+4. Click **🚀 Start Quiz**.
+
+#### Question types
+
+The AI generates a mix of:
+- **Multiple choice** — select the correct answer from radio buttons.
+- **True / False** — quick binary questions.
+- **Short answer** — type a free-form response (AI-graded).
+
+#### Scoring & feedback
+
+- Each answer is checked immediately with ✅ / ❌ feedback and an explanation.
+- After the last question the **Results** panel shows your final score and a full review.
+
+#### Leaderboard & progress
+
+- Scores are saved to `user_data/quiz_results/` automatically.
+- Open the **🏆 Leaderboard** accordion and optionally filter by topic to see top scores.
+- Use the **📊 View Progress** button to review your score history.
+
+---
+
+<a id="study-planner"></a>
+### Study Planner
+
+Let Gizmo create a personalised day-by-day study schedule based on your subjects, exam dates, and available time.
+
+#### How to create a study plan
+
+1. Open the **📅 Study Planner** tab.
+2. In the **➕ Add Subjects** section, enter:
+   - Subject name
+   - Exam date (`YYYY-MM-DD`)
+   - Difficulty (easy / medium / hard)
+   - Confidence level (1–10)
+3. Click **➕ Add Subject** for each subject.
+4. Set your **study hours per day** and optional start date.
+5. Click **📅 Generate Study Plan**.
+
+#### Tracking progress
+
+- Click **📌 Today** to see today's study sessions.
+- Click **📅 This Week** to view the full weekly calendar.
+- Click **📊 Progress** to see your overall completion percentage.
+- If you fall behind, click **🔄 Recalculate** (optionally adjusting available hours) to get an updated schedule.
+
+#### Export formats
+
+| Format | Description |
+|--------|-------------|
+| **CSV** | Schedule as a spreadsheet with date, subject, topic, and duration |
+| **iCal** | `.ics` file — import into Google Calendar, Apple Calendar, or Outlook |
+
+Plans are stored in `user_data/study_plans/` and can be reloaded from the **Load saved plan** dropdown at any time.
+
+---
+
+<a id="tutorials"></a>
+## Tutorials
+
+<a id="tutorial-google-slides"></a>
+### Tutorial: Google Slides Integration
+
+Follow the [Google Slides Connection](#google-slides-connection) section above for a step-by-step guide.
+
+**Quick start example:**
+
+```python
+# In a Colab notebook, after setting up credentials:
+from modules.google_slides import connect_presentation, add_text_to_slide
+
+msg, info = connect_presentation(
+    "https://docs.google.com/presentation/d/YOUR_ID/edit",
+    "/content/my-service-account.json"
+)
+print(msg)  # ✅ Connected to 'My Presentation' (5 slides).
+
+result = add_text_to_slide(0, "Hello from Gizmo!", {"x": 100, "y": 100, "width": 400, "height": 80})
+print(result)  # ✅ Text added to slide 1.
+```
+
+<a id="tutorial-model-hub"></a>
+### Tutorial: Model Hub & Downloads
+
+1. Open the **Model** tab in Gizmo.
+2. Expand the **🌐 Model Hub** accordion.
+3. Type a model name in the *Search Models* field and click **🔍 Search Hub**.
+4. Enter a model ID (e.g. `TheBloke/Mistral-7B-Instruct-v0.2-GGUF`) in the *Model ID to download* field.
+5. Click **ℹ️ More Info** to see the model's primary use cases (coding, chat, math, etc.).
+6. Click **⬇️ Download model** to start the download with live progress updates.
+
+<a id="tutorial-github-agent"></a>
+### Tutorial: GitHub Agent
+
+1. Expand the **🔧 GitHub Agent** accordion in the Chat tab sidebar.
+2. Enter your repository path and base branch.
+3. Optionally provide a GitHub Personal Access Token (for push/PR creation).
+4. Click **🔌 Connect Repo**.
+5. Click the **🔧 Git** button below the chat input to open the full agent panel.
+6. Select agent roles, describe your task, and click **🚀 Launch Agents**.
+7. When done, click **🔀 Merge All → PR** to push all agent branches and open a PR.
+
+---
+
+## 🎯 Feature Guide
+
+### Voice Chat {#voice-chat}
+
+**Tab:** Voice Chat
+
+Let users talk to the AI and have it respond with voice — great for accessibility and language learning.
+
+**Setup:**
+```bash
+pip install openai-whisper   # Speech-to-Text
+pip install gTTS             # Text-to-Speech (online)
+# or
+pip install pyttsx3          # Text-to-Speech (offline)
+```
+
+**Usage:**
+1. Open the **Voice Chat** tab.
+2. Click the microphone icon to record your question.
+3. Click **Transcribe & Ask AI** — Whisper will transcribe the audio.
+4. The AI response appears as text and is automatically spoken back using gTTS or pyttsx3.
+5. In **Settings**, choose your STT language, TTS engine, and speech speed.
+
+**Tips:**
+- Use `auto` for language detection (Whisper will detect automatically).
+- `gTTS` requires an internet connection; `pyttsx3` is fully offline.
+- For best Whisper accuracy, use the `small` or `medium` model (edit `voice_chat.py`).
+
+---
+
+### Image Understanding {#image-understanding}
+
+**Tab:** Image Understanding
+
+Drag and drop an image and ask the AI questions about it — ideal for diagrams, math problems, and photos.
+
+**Usage:**
+1. Open the **Image Understanding** tab.
+2. Drag and drop (or click to upload) an image.
+3. Type your question in the text box, or click one of the **Quick Preset** buttons.
+4. Click **Ask AI** to get a response.
+5. Previous Q&A pairs are shown in the **Session History** panel.
+
+**Preset Questions:**
+- *Describe this image* — General visual description
+- *Solve this problem* — For math/science images
+- *Explain this diagram* — For flowcharts, charts, etc.
+- *What text is in this image?* — OCR-style extraction
+
+**Tips:**
+- Multimodal models (those with an `mmproj` file loaded) will use true vision capabilities.
+- Standard LLMs will receive a text-framed prompt — results may vary.
+
+---
+
+### Web Search {#web-search}
+
+**Tab:** Web Search
+
+Search the web in real-time and let the AI synthesize an answer with citations — like a mini Perplexity.
+
+**Usage:**
+1. Open the **Web Search** tab.
+2. Type your search query and click **Search & Ask AI**.
+3. The AI returns a synthesized answer with source citations.
+4. Expand **Raw Search Results** to see individual titles, URLs, and snippets.
+5. Adjust the number of results (3–10) and preferred search engine in the settings row.
+
+**Tips:**
+- Install `duckduckgo-search` for best results: `pip install duckduckgo-search`
+- Falls back to a scraper-based approach if the package is unavailable.
+- Previous searches are stored in **Search History**.
+
+---
+
+### Model Compare {#model-compare}
+
+**Tab:** Model Compare
+
+Ask the same question to two different models simultaneously and compare their answers.
+
+**Usage:**
+1. Open the **Model Compare** tab.
+2. Select **Model A** and **Model B** from the dropdowns.
+3. Type your question and click **Compare**.
+4. Both responses appear side by side with timing and token metadata.
+5. Vote with **👍 A is Better**, **🤝 Tie**, or **👍 B is Better** — votes are saved to `user_data/compare_results.json`.
+
+**Tips:**
+- ⚠️ Switching models loads/unloads them from VRAM — this takes time on large models.
+- Works best when comparing models of similar size.
+- Use the **Comparison History** panel to review past comparisons.
+
+---
+
+### Chat Memory {#chat-memory}
+
+**Tab:** Memory
+
+Save important facts about yourself so the AI remembers them across sessions.
+
+**Usage:**
+1. Open the **Memory** tab.
+2. Type a fact (e.g., *"I am studying biology in 10th grade"*), select a category, and click **Save**.
+3. Enable **Enable Memory** to automatically prepend saved facts to every AI prompt.
+4. Enable **Auto-Extract** to let the AI extract facts from your conversations automatically.
+5. Use the **Search** box to filter memories; use **Delete** to remove individual facts.
+6. **Export** / **Import** buttons let you download or upload `memory.json`.
+
+**Memory Categories:** personal, preferences, academic, work, other
+
+**Tips:**
+- The memory injection format is:
+  ```
+  [User Memory]
+  - The user is studying biology (academic)
+  - The user prefers detailed explanations (preferences)
+  ```
+- Use **Extract Facts from Text** to paste a conversation and auto-extract facts without chat history.
+- Memories are stored in `user_data/memory.json` and persist across restarts.
+
+---
+
+## New Features
+
+### Google Drive Auto-Save
+
+Automatically back up all Gizmo conversations and settings to your Google Drive when running in Google Colab.
+
+- **How to use:** Open the **Session** tab and expand the **☁️ Google Drive Auto-Save** accordion.
+- If Google Drive is mounted (`/content/drive/MyDrive` exists), the indicator shows "☁️ Google Drive Connected".
+- Enable **Auto-save conversations to Google Drive** to back up after every chat save.
+- Use **☁️ Backup Now** to manually back up all chats and settings.
+- Use **⬇️ Restore from Drive** to restore chats and settings from a previous backup.
+- Backups are saved to `/content/drive/MyDrive/Gizmo_AI_Backups/`.
+- All Drive errors fail silently and never interrupt your chat.
+
+### Model Recommendations Wizard
+
+A friendly wizard that recommends the best model to download based on what you want to do.
+
+- **How to use:** Open the **Model** tab and expand the **🧙 Model Recommendations Wizard** accordion (shown open on first launch).
+- Select your use cases (coding, chat, research, creative writing, etc.).
+- Click **�� Find Models** to see the top 3 recommended models with descriptions, size, and download info.
+- Click **Skip Wizard** to dismiss and not show it open again.
+- The wizard uses a curated catalog of models with use-case matching and RAM filtering.
+
+### Usage Dashboard
+
+A personal stats dashboard showing your usage history, token counts, response times, streaks, and charts.
+
+- **How to use:** Click the **Dashboard** tab in the main navigation.
+- **KPI cards** show: messages today/total, tokens today/total, average response time, and current streak.
+- **Charts** show daily usage trends and token breakdown (input vs output) over the last 30 days.
+- **Details** show most-used model, total chats, total time generating, and first use date.
+- Use **🔄 Refresh** to update the dashboard, **⬇️ Export Stats (JSON)** to download your stats, and **🗑️ Reset Stats** to clear tracking data.
+- Stats are stored in `user_data/usage_stats.json` and tracked automatically after every generation.
+
+### Offline Mode Indicator
+
+A persistent status bar at the top of the interface showing the current model state.
+
+- **States:**
+  - 🟢 **Ready** — Model loaded and ready for generation
+  - 🟡 **Loading** — Model is currently being loaded
+  - 🔴 **No Model** — No model loaded; go to Model tab to load one
+- The status bar is rendered as an HTML element at the top of every page load.
+- It updates automatically when you load or unload a model.

@@ -891,6 +891,7 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
 
     # Generate
     reply = None
+    _gen_start = time.monotonic()
     for j, reply in enumerate(generate_reply(prompt, state, stopping_strings=stopping_strings, is_chat=True, for_ui=for_ui)):
 
         # Extract the reply
@@ -958,6 +959,23 @@ def chatbot_wrapper(text, state, regenerate=False, _continue=False, loading_mess
         })
 
     yield output
+
+    # Log usage stats after generation completes
+    try:
+        from modules.usage_tracker import log_generation
+        _gen_time = time.monotonic() - _gen_start
+        _reply_text = output['internal'][-1][1] if output['internal'] else ''
+        _prompt_text = prompt if isinstance(prompt, str) else ''
+        _tokens_out = len(_reply_text.split())
+        _tokens_in = len(_prompt_text.split())
+        log_generation(
+            model_name=shared.model_name or 'unknown',
+            tokens_generated=_tokens_out,
+            tokens_input=_tokens_in,
+            generation_time_s=_gen_time,
+        )
+    except Exception:
+        pass  # Never break chat for stats errors
 
 
 def impersonate_wrapper(textbox, state):
@@ -1141,6 +1159,14 @@ def save_history(history, unique_id, character, mode):
 
     with open(p, 'w', encoding='utf-8') as f:
         f.write(json.dumps(history, indent=4, ensure_ascii=False))
+
+    # Auto-backup to Google Drive if enabled
+    try:
+        from modules.google_drive_sync import backup_chat, is_drive_mounted
+        if is_drive_mounted() and shared.settings.get('auto_save_to_drive', True):
+            backup_chat(history, unique_id, character, mode)
+    except Exception:
+        pass  # Don't let Drive errors break chat saving
 
 
 def rename_history(old_id, new_id, character, mode):

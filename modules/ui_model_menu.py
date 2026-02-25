@@ -73,6 +73,11 @@ def create_ui():
                     shared.gradio['save_model_settings'] = gr.Button("Save settings", elem_classes='refresh-button', interactive=not mu)
 
                 shared.gradio['loader'] = gr.Dropdown(label="Model loader", choices=loaders.loaders_and_params.keys() if not shared.args.portable else ['llama.cpp'], value=None)
+
+                # Model Recommendations Wizard
+                from modules import ui_model_wizard
+                ui_model_wizard.create_ui()
+
                 with gr.Accordion('⚡ Performance Dashboard', open=False):
                     shared.gradio['metrics_status'] = gr.Textbox(label='Metrics monitor', value='Idle', interactive=False)
                     with gr.Row():
@@ -274,6 +279,10 @@ def create_event_handlers():
         gradio('hub_model_info'),
         show_progress=False,
     )
+
+    # Model Wizard event handlers
+    from modules import ui_model_wizard
+    ui_model_wizard.create_event_handlers()
 
 
 def load_model_wrapper(selected_model, loader, autoload=False):
