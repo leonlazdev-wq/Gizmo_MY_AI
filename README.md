@@ -836,3 +836,114 @@ Save important facts about yourself so the AI remembers them across sessions.
   ```
 - Use **Extract Facts from Text** to paste a conversation and auto-extract facts without chat history.
 - Memories are stored in `user_data/memory.json` and persist across restarts.
+
+---
+
+### Dark/Light Theme Toggle {#theme-toggle}
+
+**Location:** Fixed button in the top-right corner of every page
+
+A one-click toggle that switches between dark and light themes — always visible regardless of which tab you are on.
+
+**Usage:**
+1. Click the 🌙 / ☀️ button in the top-right corner of the UI.
+2. The theme switches instantly and is saved to `localStorage` so it persists across page reloads.
+3. Dark mode adds the `dark` class to `document.body`; light mode removes it.
+
+**Tips:**
+- The initial theme is controlled by the `dark_theme` setting in `user_data/settings.yaml`.
+- After the first visit, your manual preference stored in `localStorage` always takes priority.
+
+---
+
+### Chat Folders {#chat-folders}
+
+**Location:** "📁 Chat Folders" accordion inside the Chat tab
+
+Organise your conversations into named, colour-coded folders (e.g. *Math*, *History*, *Code Projects*).
+
+**Usage:**
+1. Expand the **📁 Chat Folders** accordion in the Chat tab.
+2. Type a folder name, pick a colour, and click **📁 Create Folder**.
+3. Use the **Filter by folder** dropdown to show only chats in a specific folder.
+   - *All Chats* — show everything
+   - *Unfiled* — show chats not assigned to any folder
+4. To rename a folder: select it in the *Folder* dropdown, type a new name, and click **✏️ Rename**.
+5. To delete a folder: select it and click **🗑️ Delete folder** — your chats are kept, just unassigned.
+
+**Storage:** `user_data/chat_folders.json`
+
+**Tips:**
+- You can assign a chat to a folder programmatically via `modules.chat_folders.assign_chat_to_folder(chat_id, folder_id)`.
+- Folder colours are stored as hex strings and used for visual badges in future UI updates.
+
+---
+
+### Pinned Messages {#pinned-messages}
+
+**Location:** Chat tab → message actions
+
+Pin the most useful AI responses so you can find them later without scrolling through the whole conversation.
+
+**Usage (Python API):**
+```python
+from modules.pinned_messages import pin_message, get_pinned_messages, is_pinned
+
+# Pin a specific message
+updated_history = pin_message(history, chat_id, character, mode,
+                              message_index=3, role="assistant",
+                              note="Great photosynthesis explanation")
+
+# Check if pinned
+pinned = is_pinned(history, message_index=3, role="assistant")
+
+# Retrieve all pinned messages across all chats
+all_pins = get_pinned_messages()
+
+# Retrieve pins for a specific chat
+chat_pins = get_pinned_messages(chat_id="20260225-14-30-00")
+```
+
+**Storage:**
+- Inline flag stored in the chat history `metadata` dict (`pinned: true`, `pin_note: "…"`).
+- Cross-chat index: `user_data/pinned_messages.json`
+
+**Tips:**
+- Use `update_pin_note(chat_id, message_index, role, note)` to edit the note on a pin.
+- Use `unpin_message(history, chat_id, message_index, role)` to remove a pin.
+
+---
+
+### Export Chat {#export-chat}
+
+**Location:** "📥 Export Chat" accordion inside the Chat tab
+
+One-click export of an entire conversation — great for submitting homework, sharing, or archiving.
+
+**Supported formats:**
+| Format | Extension | Notes |
+|---|---|---|
+| Markdown | `.md` | Headers, roles, optional timestamps |
+| HTML | `.html` | Self-contained, styled page |
+| Plain Text | `.txt` | Simple readable text |
+| JSON | `.json` | Clean structured data |
+| PDF | `.pdf` | Requires `pip install fpdf2` |
+
+**Usage:**
+1. Expand the **📥 Export Chat** accordion in the Chat tab.
+2. Choose a format and toggle *Include timestamps* / *Include metadata*.
+3. Click **📥 Export Chat** — a download link appears automatically.
+4. Exported files are saved to `user_data/exports/` with auto-generated timestamped names.
+
+**Python API:**
+```python
+from modules.chat_export import export_as_markdown, export_as_pdf, save_export
+
+md = export_as_markdown(history, name1="You", name2="Gizmo")
+path = save_export(md, "my_chat.md")
+```
+
+**Tips:**
+- PDF export requires `fpdf2`: `pip install fpdf2`
+- If `fpdf2` is not installed, calling `export_as_pdf` raises a clear `ImportError` with install instructions.
+- Filenames are auto-sanitised to remove special characters.
