@@ -83,6 +83,11 @@ from modules import (
     ui_model_compare,
     ui_memory,
     ui_theme_toggle,
+    ui_translation,
+    ui_collaborative_study,
+    ui_gamification,
+    ui_essay_writer,
+    ui_tts_reader,
     utils
 )
 from modules.chat import generate_pfp_cache
@@ -232,6 +237,11 @@ def create_interface():
         ui_web_search_tab.create_ui()  # Web Search tab
         ui_model_compare.create_ui()  # Model Compare tab
         ui_memory.create_ui()  # Memory tab
+        ui_translation.create_ui()  # Translation tab
+        ui_collaborative_study.create_ui()  # Collaborative Study tab
+        ui_gamification.create_ui()  # Achievements tab
+        ui_essay_writer.create_ui()  # Essay Writer tab
+        ui_tts_reader.create_ui()  # Read Aloud tab
 
         # Generation events
         ui_chat.create_event_handlers()
@@ -263,6 +273,11 @@ def create_interface():
         ui_knowledge.create_event_handlers()
         ui_default.create_event_handlers()
         ui_notebook.create_event_handlers()
+        ui_translation.create_event_handlers()
+        ui_collaborative_study.create_event_handlers()
+        ui_gamification.create_event_handlers()
+        ui_essay_writer.create_event_handlers()
+        ui_tts_reader.create_event_handlers()
         if not shared.args.portable:
             ui_image_generation.create_event_handlers()
 

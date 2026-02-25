@@ -2020,3 +2020,116 @@ A persistent status bar at the top of the interface showing the current model st
   - 🔴 **No Model** — No model loaded; go to Model tab to load one
 - The status bar is rendered as an HTML element at the top of every page load.
 - It updates automatically when you load or unload a model.
+
+
+---
+
+## 🆕 Student Productivity Features
+
+### 🌍 Multi-Language Translation
+
+Translate text between 20+ languages using the loaded AI model, with extra tools for language learners.
+
+- **How to use:** Open the **🌍 Translation** tab.
+- Select a **Source Language** (or leave as "Auto-detect") and a **Target Language**.
+- Type or paste text into the **Source Text** area and click **🌍 Translate**.
+- Use **🔍 Detect Language** to identify the source language automatically.
+- Click **🔄 Swap** to quickly exchange source and target languages.
+- After translating, use the AI action buttons:
+  - **📖 Explain Grammar** — explains grammar structures and verb conjugations in the translated text.
+  - **📝 Extract Vocabulary** — pulls out key words with definitions and example sentences.
+  - **🔊 Pronunciation Guide** — provides phonetic/romanized pronunciation.
+- Click **💾 Save Translation** to save to `user_data/translations/`.
+- Open the **📜 Translation History** accordion to view and delete past translations.
+
+---
+
+### 👥 Collaborative Study
+
+Study together with other users using shared quiz sessions and flashcard decks in real time.
+
+- **How to use:** Open the **👥 Collaborative Study** tab.
+- **Create a room:** Enter a room name and your name, then click **🏠 Create Room**. Share the 6-character room code with others.
+- **Join a room:** Enter the room code and your name, then click **🚪 Join Room**.
+- **Quiz Mode:**
+  - Enter a topic and number of questions, then click **🚀 Start Quiz** (room creator).
+  - Each participant selects an answer and clicks **✅ Submit Answer**.
+  - The live scoreboard updates after each submission.
+  - A session summary shows average scores and hardest questions at the end.
+- **Flashcard Mode:**
+  - Select a saved flashcard deck from the dropdown and click **📤 Share Deck** to share it with the room.
+- **Chat:** Use the **💬 Chat** tab to discuss with other participants.
+- Rooms are stored in `user_data/study_rooms/` and expire after 24 hours of inactivity.
+
+---
+
+### 🏅 Achievements & XP System
+
+Earn XP and unlock badges as you use Gizmo's study features.
+
+- **How to use:** Open the **🏅 Achievements** tab.
+- **Profile Card:** Shows your current level, XP progress bar, current streak, and longest streak.
+- **Levels:** Progress through 7 levels — Beginner → Learner → Scholar → Expert → Master → Grandmaster → Legend.
+- **XP Rewards:**
+  - Correct quiz answer: +10 XP
+  - Perfect quiz score bonus: +50 XP
+  - Flashcard reviewed: +5 XP
+  - Pomodoro completed: +25 XP
+  - Study session completed: +15 XP
+  - Daily login: +10 XP
+  - Streak bonus: +5 XP per day of consecutive usage
+- **Badges:** Earn badges like 🔥 First Steps, 📚 Bookworm, ⏱️ Focus Master, 🎯 Perfect Score, 📅 Consistent (7-day streak), 🏆 Dedicated (30-day streak), and more.
+- **Stats Section:** Tracks quizzes completed, flashcards reviewed, pomodoros, translations, essays, and more.
+- **Weekly Activity Chart:** Visual summary of XP earned each day over the past week.
+- Data is stored in `user_data/gamification.json`.
+- Other modules can call `award_xp(amount, reason)`, `check_badge(badge_id)`, and `increment_stat(stat_name)` to integrate with the XP system.
+
+---
+
+### 📝 Essay Writer
+
+Generate structured outlines and draft full essays with AI assistance, then refine them with writing feedback.
+
+- **How to use:** Open the **📝 Essay Writer** tab.
+- **Setup:**
+  - Enter your essay topic/prompt.
+  - Choose essay type (Argumentative, Persuasive, Expository, Narrative, Compare & Contrast, Research Paper).
+  - Set the target word count (250–5000 words) and academic level (High School / Undergraduate / Graduate).
+  - Click **📝 Generate Outline** to get a full hierarchical outline with thesis options.
+  - Click **💡 Generate Thesis Options** to generate thesis statements separately.
+- **Writing:**
+  - Select a section (Introduction, Body Paragraphs, Conclusion) from the dropdown.
+  - Click **✍️ Write Paragraph** to have AI draft that section.
+  - Edit the paragraph in the text area.
+  - Click **🔄 Improve Paragraph** to ask AI to enhance the paragraph.
+- **Full Essay:**
+  - Click **📄 Assemble Full Essay** to combine all written sections.
+  - Click **📏 Count Words** to see word count, sentence count, and estimated reading level.
+- **Feedback:**
+  - **📊 Analyze Writing** — detailed feedback on clarity, argument, grammar, flow, vocabulary.
+  - **🔍 Check Arguments** — identifies logical fallacies or weak arguments.
+- **Save & Load:**
+  - Enter a title and click **💾 Save** to save to `user_data/essays/`.
+  - Load previous essays from the dropdown.
+  - Click **📥 Export as Markdown** to get a plain text/Markdown version.
+
+---
+
+### 🔊 Read Aloud (Text-to-Speech)
+
+Convert any text — notes, PDFs, flashcards — to audio using gTTS or pyttsx3.
+
+- **How to use:** Open the **🔊 Read Aloud** tab.
+- **Input methods:**
+  - Paste text directly into the text area.
+  - Upload a PDF, TXT, or MD file — text is extracted automatically.
+  - Load content from saved notes (`user_data/notes/`) using the **📄 Load from Notes** dropdown.
+  - Load flashcard decks using the **🃏 Load Flashcards** dropdown.
+- **Generate audio:** Select a language, speed (0.5×–2.0×), and reading mode, then click **🔊 Generate Audio**.
+- **Reading modes:**
+  - **Full document** — reads the entire text in one audio file.
+  - **Paragraph by paragraph** — reads one paragraph at a time; use **⏮ Previous** / **⏭ Next** to navigate.
+  - **Flashcard mode** — reads each flashcard entry sequentially.
+- **Audio output:** The Gradio audio player appears with the generated MP3.
+- **TTS engines:** Uses gTTS (online, install with `pip install gTTS`) or pyttsx3 (offline, install with `pip install pyttsx3`). The best available engine is selected automatically.
+- **Settings:** Configure engine, language, speed, and auto-play preference. Click **💾 Save Settings** to persist to `user_data/tts_settings.json`.
