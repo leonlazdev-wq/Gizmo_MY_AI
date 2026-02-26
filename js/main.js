@@ -708,13 +708,26 @@ headerBar.appendChild(navigationToggle);
 const pastChatsToggle = document.getElementById("past-chats-toggle");
 const chatControlsToggle = document.getElementById("chat-controls-toggle");
 
+// Quick popup buttons for sidebars on desktop
+if (chatTab && !document.getElementById("chat-popup-buttons")) {
+  const popupButtons = document.createElement("div");
+  popupButtons.id = "chat-popup-buttons";
+
+  const chatsBtn = document.createElement("button");
+  chatsBtn.textContent = "Chats";
+  chatsBtn.addEventListener("click", () => toggleSidebar(pastChatsRow, pastChatsToggle));
+
+  const controlsBtn = document.createElement("button");
+  controlsBtn.textContent = "Controls";
+  controlsBtn.addEventListener("click", () => toggleSidebar(chatControlsRow, chatControlsToggle));
+
+  popupButtons.appendChild(chatsBtn);
+  popupButtons.appendChild(controlsBtn);
+  chatTab.appendChild(popupButtons);
+}
+
 function handleIndividualSidebarClose(event) {
   const target = event.target;
-
-  // Close navigation bar if click is outside and it is open
-  if (!headerBar.contains(target) && !headerBar.classList.contains("sidebar-hidden")) {
-    toggleSidebar(headerBar, navigationToggle, true);
-  }
 
   // Close past chats row if click is outside and it is open
   if (!pastChatsRow.contains(target) && !pastChatsRow.classList.contains("sidebar-hidden")) {
@@ -736,11 +749,8 @@ function toggleSidebar(sidebar, toggle, forceClose = false) {
   sidebar.classList.toggle("sidebar-shown", !shouldClose);
 
   if (sidebar === headerBar) {
-    // Special handling for header bar
-    document.documentElement.style.setProperty("--header-width", shouldClose ? "0px" : "112px");
-    pastChatsRow.classList.toggle("negative-header", shouldClose);
-    pastChatsToggle.classList.toggle("negative-header", shouldClose);
-    toggle.innerHTML = shouldClose ? hamburgerMenuSVG : closeMenuSVG;
+    // Header tabs stay visible at the top in the new layout.
+    return;
   } else if (sidebar === pastChatsRow) {
     // Past chats sidebar
     toggle.classList.toggle("past-chats-closed", shouldClose);
@@ -789,22 +799,19 @@ function initializeSidebars() {
     chatControlsToggle.innerHTML = leftArrowSVG;
     navigationToggle.innerHTML = hamburgerMenuSVG;
   } else {
-    // Desktop state: Show sidebars and set open states
+    // Desktop state: keep chat full-screen by default, sidebars open as popups.
     [pastChatsRow, chatControlsRow].forEach(el => {
-      el.classList.remove("sidebar-hidden", "sidebar-shown");
+      el.classList.add("sidebar-hidden");
+      el.classList.remove("sidebar-shown");
     });
 
-    pastChatsToggle.classList.add("past-chats-open");
-    pastChatsToggle.classList.remove("past-chats-closed");
+    pastChatsToggle.classList.add("past-chats-closed");
+    pastChatsToggle.classList.remove("past-chats-open");
 
-    [chatControlsToggle, navigationToggle].forEach(el => {
-      el.classList.add("chat-controls-open");
-      el.classList.remove("chat-controls-closed");
-    });
-
-    pastChatsToggle.innerHTML = leftArrowSVG;
-    chatControlsToggle.innerHTML = rightArrowSVG;
-    navigationToggle.innerHTML = closeMenuSVG;
+    chatControlsToggle.classList.add("chat-controls-closed");
+    chatControlsToggle.classList.remove("chat-controls-open");
+    pastChatsToggle.innerHTML = rightArrowSVG;
+    chatControlsToggle.innerHTML = leftArrowSVG;
   }
 }
 
@@ -813,48 +820,13 @@ initializeSidebars();
 
 // Add click event listeners to toggle buttons
 pastChatsToggle.addEventListener("click", () => {
-  const isCurrentlyOpen = !pastChatsRow.classList.contains("sidebar-hidden");
   toggleSidebar(pastChatsRow, pastChatsToggle);
-
-  // On desktop, open/close both sidebars at the same time
-  if (!isMobile()) {
-    if (isCurrentlyOpen) {
-      // If we just closed the left sidebar, also close the right sidebar
-      if (!chatControlsRow.classList.contains("sidebar-hidden")) {
-        toggleSidebar(chatControlsRow, chatControlsToggle, true);
-      }
-    } else {
-      // If we just opened the left sidebar, also open the right sidebar
-      if (chatControlsRow.classList.contains("sidebar-hidden")) {
-        toggleSidebar(chatControlsRow, chatControlsToggle, false);
-      }
-    }
-  }
 });
 
 chatControlsToggle.addEventListener("click", () => {
-  const isCurrentlyOpen = !chatControlsRow.classList.contains("sidebar-hidden");
   toggleSidebar(chatControlsRow, chatControlsToggle);
-
-  // On desktop, open/close both sidebars at the same time
-  if (!isMobile()) {
-    if (isCurrentlyOpen) {
-      // If we just closed the right sidebar, also close the left sidebar
-      if (!pastChatsRow.classList.contains("sidebar-hidden")) {
-        toggleSidebar(pastChatsRow, pastChatsToggle, true);
-      }
-    } else {
-      // If we just opened the right sidebar, also open the left sidebar
-      if (pastChatsRow.classList.contains("sidebar-hidden")) {
-        toggleSidebar(pastChatsRow, pastChatsToggle, false);
-      }
-    }
-  }
 });
 
-navigationToggle.addEventListener("click", () => {
-  toggleSidebar(headerBar, navigationToggle);
-});
 
 //------------------------------------------------
 // Fixes #chat-input textarea height issue

@@ -2,7 +2,7 @@
 ui_theme_toggle.py — Dark/Light theme toggle component.
 
 Renders a fixed-position button (top-right) that toggles the `dark` class on
-`document.body` and persists the choice in `localStorage`.
+`document.body`, keeps syntax highlight theme in sync, and persists user choice.
 """
 
 THEME_TOGGLE_HTML = """
@@ -12,44 +12,77 @@ THEME_TOGGLE_HTML = """
     top: 10px;
     right: 20px;
     z-index: 9999;
-    font-size: 24px;
+    font-size: 20px;
     background: transparent;
-    border: 1px solid #ccc;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    border: 1px solid #5b6474;
+    border-radius: 999px;
+    width: 38px;
+    height: 38px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 #theme-toggle-btn:hover {
-    transform: scale(1.1);
-    border-color: #4F46E5;
+    transform: scale(1.06);
+    border-color: #10a37f;
+}
+.dark #theme-toggle-btn {
+    border-color: #3a4455;
 }
 </style>
-<button id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle dark/light theme">🌙</button>
+<button id="theme-toggle-btn" onclick="window.gizmoToggleTheme && window.gizmoToggleTheme()" title="Toggle dark/light theme">🌙</button>
 <script>
-function toggleTheme() {
-    var body = document.body;
-    var isDark = body.classList.contains('dark');
-    if (isDark) {
-        body.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-    } else {
-        body.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+(function () {
+    function setHighlightByTheme(isDark) {
+        const currentCSS = document.getElementById('highlight-css');
+        if (currentCSS) {
+            currentCSS.setAttribute('href', isDark
+                ? 'file/css/highlightjs/github-dark.min.css'
+                : 'file/css/highlightjs/github.min.css');
+        }
     }
-    var btn = document.getElementById('theme-toggle-btn');
-    if (btn) btn.textContent = isDark ? '🌙' : '☀️';
-}
 
-// Sync button icon with current theme on load
-(function() {
-    var btn = document.getElementById('theme-toggle-btn');
-    if (btn) {
-        var isDark = document.body.classList.contains('dark') ||
-                     localStorage.getItem('theme') === 'dark';
-        btn.textContent = isDark ? '☀️' : '🌙';
+    function syncThemeStateInput(mode) {
+        const input = document.querySelector('#theme_state textarea, #theme_state input');
+        if (!input) return;
+        input.value = mode;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
     }
+
+    function updateButtonIcon() {
+        const btn = document.getElementById('theme-toggle-btn');
+        if (!btn) return;
+        btn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+    }
+
+    window.gizmoToggleTheme = function () {
+        // Use existing global helper if available.
+        if (typeof toggleDarkMode === 'function') {
+            toggleDarkMode();
+        } else {
+            document.body.classList.toggle('dark');
+        }
+
+        const isDark = document.body.classList.contains('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        setHighlightByTheme(isDark);
+        syncThemeStateInput(isDark ? 'dark' : 'light');
+        updateButtonIcon();
+    };
+
+    // Initial sync on load.
+    const saved = localStorage.getItem('theme');
+    if (!saved) {
+        localStorage.setItem('theme', 'dark');
+        document.body.classList.add('dark');
+    } else if (saved === 'dark') {
+        document.body.classList.add('dark');
+    } else if (saved === 'light') {
+        document.body.classList.remove('dark');
+    }
+
+    setHighlightByTheme(document.body.classList.contains('dark'));
+    updateButtonIcon();
 })();
 </script>
 """

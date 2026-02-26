@@ -1012,11 +1012,11 @@ def create_ui():
             shared.gradio['edit_message'] = gr.Button(elem_id="Edit-message")
 
         # Chat Folders and Export panels — collapsible accordions
-        with gr.Accordion('📁 Chat Folders', open=False, elem_id='chat-folders-accordion'):
+        with gr.Accordion('📁 Chat Folders', open=False, visible=False, elem_id='chat-folders-accordion'):
             from modules import ui_chat_folders
             ui_chat_folders.create_ui()
         
-        with gr.Accordion('📥 Export Chat', open=False, elem_id='export-chat-accordion'):
+        with gr.Accordion('📥 Export Chat', open=False, visible=False, elem_id='export-chat-accordion'):
             from modules import ui_chat_export
             ui_chat_export.create_ui()
 

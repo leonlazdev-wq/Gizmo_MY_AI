@@ -180,51 +180,68 @@ def _get_motivational_quote() -> str:
     )
 
 
-def _quick_launch_html() -> str:
-    buttons = [
-        ("💬", "Chat"), ("🃏", "Flashcards"), ("📝", "Quiz"), ("📒", "Notes"),
-        ("🔢", "Math Solver"), ("🔊", "Read Aloud"), ("✍️", "Essay Writer"),
-        ("🎵", "Music"), ("⏱️", "Pomodoro"), ("🌐", "Web Search"),
-    ]
-    cards = "".join(
-        f"<div style='border:1px solid #444;border-radius:8px;padding:12px 16px;"
-        f"background:#1e1e2e;text-align:center;min-width:90px;cursor:pointer;flex:1'>"
-        f"<div style='font-size:1.4em'>{icon}</div>"
-        f"<div style='font-size:.85em;margin-top:4px'>{label}</div>"
-        f"</div>"
-        for icon, label in buttons
-    )
-    return f"<div style='display:flex;flex-wrap:wrap;gap:10px;padding:8px'>{cards}</div>"
+def _dashboard_header_html() -> str:
+    return """
+<div class='gizmo-dash-header'>
+  <div>
+    <div class='gizmo-dash-kicker'>Unified AI Workspace</div>
+    <h2>Everything you need, one clean control center.</h2>
+    <p>Chat, models, lessons, sessions, integrations, and tools are all still available in the tabs above.</p>
+  </div>
+</div>
+"""
+
+
+def _js_go_tab(label: str) -> str:
+    return f"() => window.gizmoGoToTab && window.gizmoGoToTab({label!r})"
 
 
 def create_ui():
     with gr.Tab("📊 Dashboard", elem_id="dashboard-tab"):
+        gr.HTML(
+            """
+<style>
+#dashboard-tab .gizmo-dash-header{padding:16px 18px;border:1px solid #2b3444;border-radius:14px;background:linear-gradient(135deg,#151a24 0%,#0f131b 100%);margin-bottom:12px}
+#dashboard-tab .gizmo-dash-kicker{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7cc5ff}
+#dashboard-tab .gizmo-dash-header h2{margin:6px 0 4px;font-size:1.25rem}
+#dashboard-tab .gizmo-dash-header p{margin:0;color:#c9d1de}
+#dashboard-tab .gizmo-card{border:1px solid #2b3444;border-radius:12px;padding:10px;background:#11151d}
+#dashboard-tab .gizmo-quick-btn button{height:56px;border-radius:12px !important;font-weight:600}
+</style>
+"""
+        )
         gr.HTML(
             f"<div style='margin-bottom:8px'>"
             f"<a href='{TUTORIAL_URL}' target='_blank' rel='noopener noreferrer' "
             f"style='font-size:.88em;color:#8ec8ff'>📖 Tutorial: Dashboard Overview</a>"
             f"</div>"
         )
-        gr.HTML(
-            "<div style='font-size:1.2em;font-weight:600;margin-bottom:12px'>"
-            "Good morning! Here's your day at a glance. ☀️</div>"
-        )
+
+        gr.HTML(_dashboard_header_html())
 
         with gr.Row():
-            with gr.Column():
+            with gr.Column(elem_classes=["gizmo-card"]):
                 gr.Markdown("#### 📅 Today's Schedule")
                 shared.gradio['dash_schedule_html'] = gr.HTML(_load_schedule())
                 shared.gradio['dash_refresh_schedule_btn'] = gr.Button("🔄 Refresh")
 
-            with gr.Column():
+            with gr.Column(elem_classes=["gizmo-card"]):
                 gr.Markdown("#### ⏰ Upcoming Deadlines")
                 shared.gradio['dash_deadlines_html'] = gr.HTML(_load_deadlines())
                 shared.gradio['dash_refresh_deadlines_btn'] = gr.Button("🔄 Refresh")
 
-            with gr.Column():
+            with gr.Column(elem_classes=["gizmo-card"]):
                 gr.Markdown("#### 🃏 Review Due")
                 shared.gradio['dash_review_html'] = gr.HTML(_load_flashcards_due())
                 shared.gradio['dash_start_review_btn'] = gr.Button("🃏 Start Review")
+
+        gr.Markdown("### ⚡ Quick Launch")
+        with gr.Row():
+            shared.gradio['dash_go_chat_btn'] = gr.Button("💬 Chat", elem_classes=["gizmo-quick-btn"])
+            shared.gradio['dash_go_models_btn'] = gr.Button("🤖 Models", elem_classes=["gizmo-quick-btn"])
+            shared.gradio['dash_go_lessons_btn'] = gr.Button("📚 Lessons", elem_classes=["gizmo-quick-btn"])
+            shared.gradio['dash_go_session_btn'] = gr.Button("🧩 Session", elem_classes=["gizmo-quick-btn"])
+            shared.gradio['dash_go_connections_btn'] = gr.Button("🔗 Connections", elem_classes=["gizmo-quick-btn"])
 
         gr.Markdown("---")
 
@@ -241,17 +258,10 @@ def create_ui():
                 )
                 shared.gradio['dash_briefing_output'] = gr.Markdown("")
 
-        gr.Markdown("---")
-        gr.Markdown("### ⚡ Quick Launch")
-        shared.gradio['dash_quick_launch_html'] = gr.HTML(_quick_launch_html())
-
-        gr.Markdown("---")
-
         with gr.Accordion("📈 Weekly Progress", open=False):
             shared.gradio['dash_refresh_stats_btn'] = gr.Button("🔄 Refresh Stats")
             shared.gradio['dash_weekly_stats_html'] = gr.HTML(_load_weekly_stats())
 
-        gr.Markdown("---")
         shared.gradio['dash_quote_html'] = gr.HTML(_get_motivational_quote())
         shared.gradio['dash_refresh_quote_btn'] = gr.Button("✨ New Quote")
 
@@ -299,3 +309,9 @@ def create_event_handlers():
         inputs=[],
         outputs=[shared.gradio['dash_quote_html']],
     )
+
+    shared.gradio['dash_go_chat_btn'].click(None, None, None, js=_js_go_tab("Chat"))
+    shared.gradio['dash_go_models_btn'].click(None, None, None, js=_js_go_tab("Model"))
+    shared.gradio['dash_go_lessons_btn'].click(None, None, None, js=_js_go_tab("Lessons"))
+    shared.gradio['dash_go_session_btn'].click(None, None, None, js=_js_go_tab("Session"))
+    shared.gradio['dash_go_connections_btn'].click(None, None, None, js=_js_go_tab("Connections"))
