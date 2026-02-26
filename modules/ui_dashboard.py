@@ -201,11 +201,11 @@ def create_ui():
         gr.HTML(
             """
 <style>
-#dashboard-tab .gizmo-dash-header{padding:16px 18px;border:1px solid #2b3444;border-radius:14px;background:linear-gradient(135deg,#151a24 0%,#0f131b 100%);margin-bottom:12px}
-#dashboard-tab .gizmo-dash-kicker{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#7cc5ff}
+#dashboard-tab .gizmo-dash-header{padding:16px 18px;border:1px solid var(--border-color-primary);border-radius:14px;background:linear-gradient(135deg,#f8fafc 0%,#eef2ff 100%);margin-bottom:12px}
+#dashboard-tab .gizmo-dash-kicker{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6366f1}
 #dashboard-tab .gizmo-dash-header h2{margin:6px 0 4px;font-size:1.25rem}
-#dashboard-tab .gizmo-dash-header p{margin:0;color:#c9d1de}
-#dashboard-tab .gizmo-card{border:1px solid #2b3444;border-radius:12px;padding:10px;background:#11151d}
+#dashboard-tab .gizmo-dash-header p{margin:0;color:#4b5563}
+#dashboard-tab .gizmo-card{border:1px solid var(--border-color-primary);border-radius:12px;padding:10px;background:var(--block-background-fill)}
 #dashboard-tab .gizmo-quick-btn button{height:56px;border-radius:12px !important;font-weight:600}
 </style>
 """

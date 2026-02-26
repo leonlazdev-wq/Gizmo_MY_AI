@@ -1,32 +1,25 @@
-/* Forceful dark UI pass so all panels/text match dark mode */
+/* Refined ChatGPT/Claude-like theme polish without breaking core Gradio layout */
 :root {
-    --gizmo-bg: #0a0c10;
-    --gizmo-surface: #11151d;
-    --gizmo-surface-2: #171d28;
-    --gizmo-border: #2b3444;
-    --gizmo-text: #e5e7eb;
-    --gizmo-muted: #9ca3af;
+    --gizmo-bg: #f7f7f8;
+    --gizmo-surface: #ffffff;
+    --gizmo-border: #e5e7eb;
+    --gizmo-text: #111827;
+    --gizmo-muted: #6b7280;
     --gizmo-accent: #10a37f;
-}
-
-html, body,
-.gradio-container,
-.gradio-container * {
-    color: var(--gizmo-text);
 }
 
 body,
 .gradio-container {
-    background: radial-gradient(circle at top, #141922 0%, var(--gizmo-bg) 45%, #06070a 100%) !important;
+    background: radial-gradient(circle at top, #ffffff 0%, var(--gizmo-bg) 45%, #f3f4f6 100%);
 }
 
 .header_bar {
     position: sticky;
     top: 0;
-    z-index: 50;
+    z-index: 40;
     backdrop-filter: blur(8px);
-    background: rgba(10, 12, 16, 0.95) !important;
-    border-bottom: 1px solid var(--gizmo-border) !important;
+    background: rgba(247, 247, 248, 0.9);
+    border-bottom: 1px solid var(--gizmo-border);
 }
 
 .tabs > .tab-nav {
@@ -43,80 +36,29 @@ body,
 }
 
 .tabs > .tab-nav > button.selected {
-    background: #0f3f36 !important;
-    border-color: #1f8b73 !important;
-    color: #cbfff2 !important;
+    background: #ecfdf5 !important;
+    border-color: #6ee7b7 !important;
+    color: #065f46 !important;
 }
 
-/* Chat and tab surfaces */
-#chat-tab,
-#dashboard-tab,
-#parameters,
-#session-tab,
-#model-tab,
-#character-tab,
-#notebook-parent-tab,
-#image-ai-tab,
-#chat-col,
-#past-chats-row,
-#chat-controls,
-.gr-box,
-.block,
-.form,
-.panel,
-.gradio-accordion,
-.gradio-tabs,
-.tabitem,
-[data-testid="block"],
-[data-testid="form"] {
-    background: var(--gizmo-surface) !important;
-    color: var(--gizmo-text) !important;
-    border-color: var(--gizmo-border) !important;
+#chat-col, #dashboard-tab {
+    border: 1px solid var(--gizmo-border);
+    border-radius: 16px;
+    background: var(--gizmo-surface);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
 #chat-input textarea,
-.ui-chat-textarea textarea,
-input,
-select,
-textarea {
-    border-radius: 12px !important;
+.ui-chat-textarea textarea {
+    border-radius: 14px !important;
     border: 1px solid var(--gizmo-border) !important;
-    background: var(--gizmo-surface-2) !important;
+    background: #ffffff !important;
     color: var(--gizmo-text) !important;
-}
-
-#chat-input textarea::placeholder,
-textarea::placeholder,
-input::placeholder {
-    color: var(--gizmo-muted) !important;
+    box-shadow: 0 4px 18px rgba(2, 6, 23, 0.06) !important;
 }
 
 #chat-input textarea:focus,
-.ui-chat-textarea textarea:focus,
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--gizmo-accent) !important;
-    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.20) !important;
-}
-
-button {
-    background: var(--gizmo-surface-2) !important;
-    color: var(--gizmo-text) !important;
-    border: 1px solid var(--gizmo-border) !important;
-}
-
-#chat-popup-buttons {
-    position: fixed;
-    top: 52px;
-    right: 12px;
-    z-index: 1400;
-    display: flex;
-    gap: 8px;
-}
-
-#chat-popup-buttons button {
-    border-radius: 999px;
-    background: rgba(11, 13, 18, 0.96) !important;
-    color: #e5e7eb !important;
+.ui-chat-textarea textarea:focus {
+    border-color: #86efac !important;
+    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.15) !important;
 }

@@ -1025,7 +1025,7 @@ audio {
 #past-chats-toggle,
 #chat-controls-toggle,
 #navigation-toggle {
-    display: none !important;
+    display: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1106,7 +1106,7 @@ audio {
 @media screen and (width > 924px) {
     #past-chats-row.sidebar-shown {
         position: fixed;
-        left: 8px;
+        left: calc(var(--header-width) + 8px);
         top: 8px;
         z-index: 1200;
         height: calc(100dvh - 16px);
