@@ -1100,6 +1100,32 @@ audio {
     }
 }
 
+@media screen and (width > 924px) {
+    #past-chats-row.sidebar-shown {
+        position: fixed;
+        left: calc(var(--header-width) + 8px);
+        top: 8px;
+        z-index: 1200;
+        height: calc(100dvh - 16px);
+        border-radius: 12px;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    #chat-controls.sidebar-shown {
+        position: fixed;
+        right: 8px;
+        top: 8px;
+        z-index: 1200;
+        height: calc(100dvh - 16px);
+        border-radius: 12px;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    #chat-col {
+        width: 100%;
+    }
+}
+
 /* ----------------------------------------------
   Dark theme
 ---------------------------------------------- */
