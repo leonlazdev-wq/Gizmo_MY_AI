@@ -1,29 +1,15 @@
-/* Theme-aware modern polish (default dark via server setting, supports full light toggle) */
+/* Refined ChatGPT/Claude-like theme polish without breaking core Gradio layout */
 :root {
-    --gizmo-bg-light: #f5f7fb;
-    --gizmo-surface-light: #ffffff;
-    --gizmo-surface-2-light: #f3f4f6;
-    --gizmo-border-light: #d9dde5;
-    --gizmo-text-light: #111827;
-    --gizmo-muted-light: #6b7280;
-
-    --gizmo-bg-dark: #0b0d12;
-    --gizmo-surface-dark: #11141b;
-    --gizmo-surface-2-dark: #171b24;
-    --gizmo-border-dark: #2a3240;
-    --gizmo-text-dark: #e5e7eb;
-    --gizmo-muted-dark: #9ca3af;
+    --gizmo-bg: #f7f7f8;
+    --gizmo-surface: #ffffff;
+    --gizmo-border: #e5e7eb;
+    --gizmo-text: #111827;
+    --gizmo-muted: #6b7280;
     --gizmo-accent: #10a37f;
 }
 
 .gradio-container {
-    background: radial-gradient(circle at top, #ffffff 0%, var(--gizmo-bg-light) 45%, #eef1f7 100%) !important;
-    color: var(--gizmo-text-light);
-}
-
-.dark .gradio-container {
-    background: radial-gradient(circle at top, #131925 0%, var(--gizmo-bg-dark) 45%, #07090d 100%) !important;
-    color: var(--gizmo-text-dark);
+    background: radial-gradient(circle at top, #ffffff 0%, var(--gizmo-bg) 45%, #f3f4f6 100%);
 }
 
 .header_bar {
@@ -31,13 +17,8 @@
     top: 0;
     z-index: 40;
     backdrop-filter: blur(8px);
-    background: rgba(245, 247, 251, 0.92) !important;
-    border-bottom: 1px solid var(--gizmo-border-light);
-}
-
-.dark .header_bar {
-    background: rgba(9, 11, 16, 0.92) !important;
-    border-bottom: 1px solid var(--gizmo-border-dark);
+    background: rgba(247, 247, 248, 0.9);
+    border-bottom: 1px solid var(--gizmo-border);
 }
 
 .tabs > .tab-nav {
@@ -47,139 +28,36 @@
 
 .tabs > .tab-nav > button {
     border-radius: 999px !important;
-    border: 1px solid var(--gizmo-border-light) !important;
-    background: var(--gizmo-surface-light) !important;
-    color: var(--gizmo-text-light) !important;
+    border: 1px solid var(--gizmo-border) !important;
+    background: var(--gizmo-surface) !important;
+    color: var(--gizmo-text) !important;
     font-weight: 600;
 }
 
-.dark .tabs > .tab-nav > button {
-    border-color: var(--gizmo-border-dark) !important;
-    background: var(--gizmo-surface-dark) !important;
-    color: var(--gizmo-text-dark) !important;
-}
-
 .tabs > .tab-nav > button.selected {
-    background: #e8f7f3 !important;
-    border-color: #7ad8bf !important;
-    color: #0f7660 !important;
-}
-
-.dark .tabs > .tab-nav > button.selected {
-    background: #0d3b34 !important;
-    border-color: #1d7c67 !important;
-    color: #b7f7e7 !important;
+    background: #ecfdf5 !important;
+    border-color: #6ee7b7 !important;
+    color: #065f46 !important;
 }
 
 #chat-col, #dashboard-tab {
-    border: 1px solid var(--gizmo-border-light);
-    border-radius: 12px;
-    background: var(--gizmo-surface-light);
-}
-
-.dark #chat-col,
-.dark #dashboard-tab {
-    border-color: var(--gizmo-border-dark);
-    background: var(--gizmo-surface-dark);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--gizmo-border);
+    border-radius: 16px;
+    background: var(--gizmo-surface);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
 #chat-input textarea,
 .ui-chat-textarea textarea {
     border-radius: 14px !important;
-    border: 1px solid var(--gizmo-border-light) !important;
-    background: var(--gizmo-surface-2-light) !important;
-    color: var(--gizmo-text-light) !important;
-}
-
-.dark #chat-input textarea,
-.dark .ui-chat-textarea textarea {
-    border-color: var(--gizmo-border-dark) !important;
-    background: var(--gizmo-surface-2-dark) !important;
-    color: var(--gizmo-text-dark) !important;
-}
-
-#chat-input textarea::placeholder,
-.ui-chat-textarea textarea::placeholder {
-    color: var(--gizmo-muted-light) !important;
-}
-
-.dark #chat-input textarea::placeholder,
-.dark .ui-chat-textarea textarea::placeholder {
-    color: var(--gizmo-muted-dark) !important;
+    border: 1px solid var(--gizmo-border) !important;
+    background: #ffffff !important;
+    color: var(--gizmo-text) !important;
+    box-shadow: 0 4px 18px rgba(2, 6, 23, 0.06) !important;
 }
 
 #chat-input textarea:focus,
 .ui-chat-textarea textarea:focus {
-    border-color: var(--gizmo-accent) !important;
-    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.22) !important;
-}
-
-#chat-popup-buttons {
-    position: fixed;
-    top: 52px;
-    right: 12px;
-    z-index: 1400;
-    display: flex;
-    gap: 8px;
-}
-
-#chat-popup-buttons button {
-    border-radius: 999px;
-    border: 1px solid #c6ced9;
-    background: rgba(255, 255, 255, 0.92);
-    color: #111827;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 7px 12px;
-    cursor: pointer;
-}
-
-.dark #chat-popup-buttons button {
-    border-color: #2f3745;
-    background: rgba(11, 13, 18, 0.9);
-    color: #e5e7eb;
-}
-
-
-/* Strong dark-mode coverage across Gradio primitives */
-.dark .gr-box,
-.dark .block,
-.dark .form,
-.dark .panel,
-.dark .gradio-accordion,
-.dark .gradio-tabs,
-.dark .tabitem,
-.dark [data-testid="block"],
-.dark [data-testid="form"] {
-    background: var(--gizmo-surface-dark) !important;
-    color: var(--gizmo-text-dark) !important;
-    border-color: var(--gizmo-border-dark) !important;
-}
-
-.dark input,
-.dark textarea,
-.dark select,
-.dark button,
-.dark .prose,
-.dark .message-body,
-.dark .message-body * {
-    color: var(--gizmo-text-dark) !important;
-}
-
-.dark #chat-tab,
-.dark #dashboard-tab,
-.dark #parameters,
-.dark #session-tab,
-.dark #model-tab,
-.dark #character-tab,
-.dark #notebook-parent-tab,
-.dark #image-ai-tab {
-    background: #0b0d12 !important;
-}
-
-.dark #past-chats-row,
-.dark #chat-controls {
-    background: #0f131b !important;
-    border-color: var(--gizmo-border-dark) !important;
+    border-color: #86efac !important;
+    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.15) !important;
 }

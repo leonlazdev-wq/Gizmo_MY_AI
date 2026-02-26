@@ -72,10 +72,7 @@ THEME_TOGGLE_HTML = """
 
     // Initial sync on load.
     const saved = localStorage.getItem('theme');
-    if (!saved) {
-        localStorage.setItem('theme', 'dark');
-        document.body.classList.add('dark');
-    } else if (saved === 'dark') {
+    if (saved === 'dark') {
         document.body.classList.add('dark');
     } else if (saved === 'light') {
         document.body.classList.remove('dark');

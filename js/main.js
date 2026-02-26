@@ -810,8 +810,12 @@ function initializeSidebars() {
 
     chatControlsToggle.classList.add("chat-controls-closed");
     chatControlsToggle.classList.remove("chat-controls-open");
+    navigationToggle.classList.add("chat-controls-open");
+    navigationToggle.classList.remove("chat-controls-closed");
+
     pastChatsToggle.innerHTML = rightArrowSVG;
     chatControlsToggle.innerHTML = leftArrowSVG;
+    navigationToggle.innerHTML = closeMenuSVG;
   }
 }
 
