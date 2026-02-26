@@ -4,7 +4,7 @@
     --light-gray: #2C2E34;
     --light-theme-gray: #f9fbff;
     --border-color-dark: #525252;
-    --header-width: 112px;
+    --header-width: 0px;
     --selected-item-color-dark: #282930;
 }
 
@@ -127,21 +127,23 @@ gradio-app > :first-child {
 }
 
 .header_bar {
-    border-right: var(--input-border-width) solid var(--input-border-color);
+    border-bottom: var(--input-border-width) solid var(--input-border-color);
     margin-bottom: 0;
-    overflow-x: scroll;
+    overflow-x: auto;
+    overflow-y: hidden;
     text-wrap: nowrap;
     z-index: 90;
-    position: fixed;
+    position: sticky;
+    top: 0;
     display: flex !important;
-    flex-direction: column;
-    height: 100dvh;
-    width: var(--header-width);
+    flex-direction: row;
+    height: auto;
+    width: 100%;
 }
 
 .header_bar button {
     margin: 0;
-    padding: 0.75rem;
+    padding: 0.6rem 0.9rem;
 }
 
 .header_bar button.selected {
@@ -400,12 +402,13 @@ audio {
 }
 
 .chat .message {
-    width: min(100%, 48rem);
+    width: 100%;
+    max-width: 100%;
     margin-left: auto;
     margin-right: auto;
     text-align: start;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
     contain: layout;
 }
 
@@ -1022,7 +1025,7 @@ audio {
 #past-chats-toggle,
 #chat-controls-toggle,
 #navigation-toggle {
-    display: flex;
+    display: none !important;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1077,7 +1080,7 @@ audio {
 }
 
 .header_bar ~ * {
-    margin-left: var(--header-width);
+    margin-left: 0;
 }
 
 /* Positions for chat-controls-toggle */
@@ -1097,6 +1100,32 @@ audio {
 
     #past-chats-row.sidebar-shown {
         position: fixed;
+    }
+}
+
+@media screen and (width > 924px) {
+    #past-chats-row.sidebar-shown {
+        position: fixed;
+        left: 8px;
+        top: 8px;
+        z-index: 1200;
+        height: calc(100dvh - 16px);
+        border-radius: 12px;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    #chat-controls.sidebar-shown {
+        position: fixed;
+        right: 8px;
+        top: 8px;
+        z-index: 1200;
+        height: calc(100dvh - 16px);
+        border-radius: 12px;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    #chat-col {
+        width: 100%;
     }
 }
 

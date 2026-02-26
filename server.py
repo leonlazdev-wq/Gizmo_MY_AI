@@ -375,27 +375,10 @@ def create_interface():
             gradio('show_controls'),
             None,
             js=f"""(x) => {{
-                // Check if this is first visit or if localStorage is out of sync
-                const savedTheme = localStorage.getItem('theme');
-                const serverTheme = {str(shared.settings['dark_theme']).lower()} ? 'dark' : 'light';
-
-                // If no saved theme or mismatch with server on first load, use server setting
-                if (!savedTheme || !sessionStorage.getItem('theme_synced')) {{
-                    localStorage.setItem('theme', serverTheme);
-                    sessionStorage.setItem('theme_synced', 'true');
-                    if (serverTheme === 'dark') {{
-                        document.getElementsByTagName('body')[0].classList.add('dark');
-                    }} else {{
-                        document.getElementsByTagName('body')[0].classList.remove('dark');
-                    }}
-                }} else {{
-                    // Use localStorage for subsequent reloads
-                    if (savedTheme === 'dark') {{
-                        document.getElementsByTagName('body')[0].classList.add('dark');
-                    }} else {{
-                        document.getElementsByTagName('body')[0].classList.remove('dark');
-                    }}
-                }}
+                // Force dark startup so stale localStorage light mode doesn't produce white UI.
+                localStorage.setItem('theme', 'dark');
+                sessionStorage.setItem('theme_synced', 'true');
+                document.getElementsByTagName('body')[0].classList.add('dark');
                 {js}
                 {ui.show_controls_js}
                 toggle_controls(x);

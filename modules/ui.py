@@ -61,32 +61,32 @@ theme = gr.themes.Default(
     font=['Noto Sans', 'Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
     font_mono=['IBM Plex Mono', 'ui-monospace', 'Consolas', 'monospace'],
 ).set(
-    border_color_primary='#c5c5d2',
+    border_color_primary='#2b3444',
     button_large_padding='6px 12px',
-    body_text_color_subdued='#484848',
-    background_fill_secondary='#eaeaea',
-    background_fill_primary='var(--neutral-50)',
-    body_background_fill="white",
-    block_background_fill="#f4f4f4",
-    body_text_color="#333",
-    button_secondary_background_fill="#f4f4f4",
-    button_secondary_border_color="var(--border-color-primary)"
+    body_text_color_subdued='#9ca3af',
+    background_fill_secondary='#0f131b',
+    background_fill_primary='#0a0c10',
+    body_background_fill="#0a0c10",
+    block_background_fill="#11151d",
+    body_text_color="#e5e7eb",
+    button_secondary_background_fill="#171d28",
+    button_secondary_border_color="#2b3444"
 )
 
 if not shared.args.old_colors:
     theme = theme.set(
         # General Colors
-        border_color_primary='#c5c5d2',
-        body_text_color_subdued='#484848',
-        background_fill_secondary='#eaeaea',
+        border_color_primary='#2b3444',
+        body_text_color_subdued='#9ca3af',
+        background_fill_secondary='#0f131b',
         background_fill_secondary_dark='var(--selected-item-color-dark, #282930)',
-        background_fill_primary='var(--neutral-50)',
+        background_fill_primary='#0a0c10',
         background_fill_primary_dark='var(--darker-gray, #1C1C1D)',
-        body_background_fill="white",
-        block_background_fill="transparent",
-        body_text_color='rgb(64, 64, 64)',
-        button_secondary_background_fill="white",
-        button_secondary_border_color="var(--border-color-primary)",
+        body_background_fill="#0a0c10",
+        block_background_fill="#11151d",
+        body_text_color='#e5e7eb',
+        button_secondary_background_fill="#171d28",
+        button_secondary_border_color="#2b3444",
         input_shadow="none",
         button_shadow_hover="none",
 
