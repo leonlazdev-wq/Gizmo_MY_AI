@@ -8,6 +8,19 @@ set PYTHONHOME=
 
 cd /D "%~dp0"
 
+@rem Force ALL installs, cache, and temp files to stay on D: (this folder)
+set TMP=%~dp0installer_files\tmp
+set TEMP=%~dp0installer_files\tmp
+set PIP_CACHE_DIR=%~dp0installer_files\pip_cache
+set CONDA_PKGS_DIRS=%~dp0installer_files\conda_pkgs
+set HF_HOME=%~dp0installer_files\huggingface
+set TRANSFORMERS_CACHE=%~dp0installer_files\huggingface
+set XDG_CACHE_HOME=%~dp0installer_files\cache
+mkdir "%~dp0installer_files\tmp" 2>nul
+mkdir "%~dp0installer_files\pip_cache" 2>nul
+mkdir "%~dp0installer_files\conda_pkgs" 2>nul
+mkdir "%~dp0installer_files\huggingface" 2>nul
+
 @rem Portable install case
 if exist "portable_env" (
     .\portable_env\python.exe server.py --portable --api --auto-launch %*
@@ -25,9 +38,7 @@ echo "%CD%"| findstr /R /C:"[!#\$%&()\*+,;<=>?@\[\]\^`{|}~]" >nul && (
 )
 set SPCHARMESSAGE=
 
-@rem fix failed install when installing to a separate drive
-set TMP=%cd%\installer_files
-set TEMP=%cd%\installer_files
+@rem install dir config (TMP/TEMP already set to D: above)
 
 @rem deactivate existing conda envs as needed to avoid conflicts
 (call conda deactivate && call conda deactivate && call conda deactivate) 2>nul
