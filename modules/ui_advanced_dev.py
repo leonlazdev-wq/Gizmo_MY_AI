@@ -160,3 +160,14 @@ def create_ui():
         api_name="pr_review"
     )
 
+
+def create_event_handlers():
+    """Called by server.py after all UI tabs are built.
+    
+    All event handlers for the Advanced Dev tab are wired inside create_ui()
+    because they reference local Gradio component variables. This function
+    exists solely to satisfy the server.py calling convention and is intentionally
+    a no-op.
+    """
+    pass
+
