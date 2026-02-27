@@ -1,4 +1,5 @@
 import copy
+import inspect
 import threading
 from pathlib import Path
 
@@ -10,6 +11,25 @@ import modules.extensions as extensions_module
 from modules import shared
 from modules.chat import load_history
 from modules.utils import gradio
+
+
+def _safe_theme_set(theme, **kwargs):
+    """Call theme.set() filtering out any kwargs the installed Gradio doesn't support.
+    
+    Gradio's theme API changes between minor versions. This prevents crashes when
+    a theme parameter (e.g. button_primary_shadow_hover) is removed in a newer
+    Gradio release.
+    """
+    try:
+        valid_params = set(inspect.signature(theme.set).parameters.keys())
+        filtered = {k: v for k, v in kwargs.items() if k in valid_params}
+        return theme.set(**filtered)
+    except Exception:
+        # Last resort: try the call as-is, then fall back to no-op
+        try:
+            return theme.set(**kwargs)
+        except Exception:
+            return theme
 
 # Global state for auto-saving UI settings with debouncing
 _auto_save_timer = None
@@ -57,10 +77,11 @@ refresh_symbol = '🔄'
 delete_symbol = '🗑️'
 save_symbol = '💾'
 
-theme = gr.themes.Default(
-    font=['Inter', 'Noto Sans', 'Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-    font_mono=['IBM Plex Mono', 'Fira Code', 'ui-monospace', 'Consolas', 'monospace'],
-).set(
+theme = _safe_theme_set(
+    gr.themes.Default(
+        font=['Inter', 'Noto Sans', 'Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        font_mono=['IBM Plex Mono', 'Fira Code', 'ui-monospace', 'Consolas', 'monospace'],
+    ),
     border_color_primary='#2a2a3d',
     button_large_padding='8px 18px',
     body_text_color_subdued='#a0a4b0',
@@ -74,7 +95,7 @@ theme = gr.themes.Default(
 )
 
 if not shared.args.old_colors:
-    theme = theme.set(
+    theme = _safe_theme_set(theme,
         # General Colors
         border_color_primary='#2a2a3d',
         body_text_color_subdued='#a0a4b0',
