@@ -1,4 +1,6 @@
 import json
+import os
+
 FAVORITES_PATH = os.path.join("user_data", "model_favorites.json")
 
 def load_model_favorites():
@@ -56,7 +58,7 @@ def get_all_favorite_models():
 def get_all_model_tags():
     data = load_model_favorites()
     return data["tags"]
-import os
+
 import re
 from datetime import datetime
 from pathlib import Path
