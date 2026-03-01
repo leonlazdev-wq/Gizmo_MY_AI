@@ -78,25 +78,11 @@ Linux/Fedora quick start from a fresh terminal:
 
 ```bash
 cd ~/projects/Gizmo
-git pull
-
-# If your previous install failed, recreate a clean venv
-rm -rf venv
-python3 -m venv venv
 source venv/bin/activate
-
-# 1) System deps for native wheels/build fallback
-sudo dnf install -y gcc-c++ gcc make python3-devel libjpeg-turbo-devel zlib-devel
-
-# 2) Install Python deps
-pip install --upgrade pip
-pip install -r requirements/full/requirements.txt
-
-# 3) Launch (prints a public Gradio URL)
 python3 server.py --listen --listen-host 127.0.0.1 --listen-port 7860 --share --model-dir ./storage/models
 ```
 
-Use `--share` if you want a public URL; omit it for local-only access. If pip fails partway, rerun `pip install -r requirements/full/requirements.txt` before starting the server.
+Use `--share` if you want a public URL; omit it for local-only access.
 
 You can pass command-line flags directly (e.g., `./start_linux.sh --help`), or add them to `user_data/CMD_FLAGS.txt` (e.g., `--api` to enable the API).
 
@@ -1431,25 +1417,11 @@ Linux/Fedora quick start from a fresh terminal:
 
 ```bash
 cd ~/projects/Gizmo
-git pull
-
-# If your previous install failed, recreate a clean venv
-rm -rf venv
-python3 -m venv venv
 source venv/bin/activate
-
-# 1) System deps for native wheels/build fallback
-sudo dnf install -y gcc-c++ gcc make python3-devel libjpeg-turbo-devel zlib-devel
-
-# 2) Install Python deps
-pip install --upgrade pip
-pip install -r requirements/full/requirements.txt
-
-# 3) Launch (prints a public Gradio URL)
 python3 server.py --listen --listen-host 127.0.0.1 --listen-port 7860 --share --model-dir ./storage/models
 ```
 
-Use `--share` if you want a public URL; omit it for local-only access. If pip fails partway, rerun `pip install -r requirements/full/requirements.txt` before starting the server.
+Use `--share` if you want a public URL; omit it for local-only access.
 
 You can pass command-line flags directly (e.g., `./start_linux.sh --help`), or add them to `user_data/CMD_FLAGS.txt` (e.g., `--api` to enable the API).
 
