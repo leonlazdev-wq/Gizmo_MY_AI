@@ -74,6 +74,34 @@ For users who need additional backends (ExLlamaV3, Transformers) or extensions (
 
 To restart the web UI later, run the same `start_` script.
 
+Linux/Fedora quick start from a fresh terminal:
+
+```bash
+cd ~/projects/Gizmo
+
+# Optional: if this folder is a git clone, update first
+# git pull
+
+# If your previous install failed, recreate a clean venv
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+
+# 1) System deps for native wheels/build fallback
+sudo dnf install -y gcc-c++ gcc make python3-devel libjpeg-turbo-devel zlib-devel
+
+# 2) Install Python deps
+pip install --upgrade pip
+pip install -r requirements/full/requirements.txt
+
+# 3) Launch (prints a public Gradio URL)
+python3 server.py --listen --listen-host 127.0.0.1 --listen-port 7860 --share --model-dir ./storage/models
+```
+
+Use `--share` if you want a public URL; omit it for local-only access. If pip fails partway, rerun `pip install -r requirements/full/requirements.txt` before starting the server.
+
+Alternative: run `./start_fedora.sh --share` to auto-create venv, install Fedora deps, apply Pillow compatibility guard, install Python deps, and launch.
+
 You can pass command-line flags directly (e.g., `./start_linux.sh --help`), or add them to `user_data/CMD_FLAGS.txt` (e.g., `--api` to enable the API).
 
 To update, run the update script for your OS: `update_wizard_windows.bat`, `update_wizard_linux.sh`, or `update_wizard_macos.sh`.
@@ -1402,6 +1430,34 @@ For users who need additional backends (ExLlamaV3, Transformers) or extensions (
 4. After installation, open `http://127.0.0.1:7860` in your browser.
 
 To restart the web UI later, run the same `start_` script.
+
+Linux/Fedora quick start from a fresh terminal:
+
+```bash
+cd ~/projects/Gizmo
+
+# Optional: if this folder is a git clone, update first
+# git pull
+
+# If your previous install failed, recreate a clean venv
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+
+# 1) System deps for native wheels/build fallback
+sudo dnf install -y gcc-c++ gcc make python3-devel libjpeg-turbo-devel zlib-devel
+
+# 2) Install Python deps
+pip install --upgrade pip
+pip install -r requirements/full/requirements.txt
+
+# 3) Launch (prints a public Gradio URL)
+python3 server.py --listen --listen-host 127.0.0.1 --listen-port 7860 --share --model-dir ./storage/models
+```
+
+Use `--share` if you want a public URL; omit it for local-only access. If pip fails partway, rerun `pip install -r requirements/full/requirements.txt` before starting the server.
+
+Alternative: run `./start_fedora.sh --share` to auto-create venv, install Fedora deps, apply Pillow compatibility guard, install Python deps, and launch.
 
 You can pass command-line flags directly (e.g., `./start_linux.sh --help`), or add them to `user_data/CMD_FLAGS.txt` (e.g., `--api` to enable the API).
 
