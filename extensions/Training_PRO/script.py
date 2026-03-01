@@ -84,6 +84,42 @@ train_template = {}
 train_log_graph = []
 train_choices = ["all","q-k-v-o","q-k-v","k-v-down","q-v"]
 
+# Built-in training presets
+TRAINING_PRESETS = {
+    "Quick LoRA": {
+        "lora_rank": 16, "lora_alpha": 32, "micro_batch_size": 4, "grad_accumulation": 2,
+        "epochs": 3, "learning_rate": "3e-4", "cutoff_len": 512, "warmup_steps": 50,
+        "training_projection": "q-v", "lr_scheduler_type": "cosine",
+    },
+    "Deep Memorization": {
+        "lora_rank": 64, "lora_alpha": 128, "micro_batch_size": 2, "grad_accumulation": 4,
+        "epochs": 10, "learning_rate": "1e-4", "cutoff_len": 1024, "warmup_steps": 100,
+        "training_projection": "all", "lr_scheduler_type": "cosine_with_restarts",
+    },
+    "Code Fine-tune": {
+        "lora_rank": 32, "lora_alpha": 64, "micro_batch_size": 4, "grad_accumulation": 2,
+        "epochs": 5, "learning_rate": "2e-4", "cutoff_len": 2048, "warmup_steps": 100,
+        "training_projection": "q-k-v-o", "lr_scheduler_type": "cosine",
+    },
+    "Chat Persona": {
+        "lora_rank": 8, "lora_alpha": 16, "micro_batch_size": 8, "grad_accumulation": 1,
+        "epochs": 4, "learning_rate": "3e-4", "cutoff_len": 512, "warmup_steps": 50,
+        "training_projection": "q-v", "lr_scheduler_type": "linear",
+    },
+    "RTX 4080 Max": {
+        "lora_rank": 32, "lora_alpha": 64, "micro_batch_size": 8, "grad_accumulation": 2,
+        "epochs": 5, "learning_rate": "2e-4", "cutoff_len": 2048, "warmup_steps": 100,
+        "training_projection": "q-k-v-o", "lr_scheduler_type": "cosine",
+    },
+}
+
+# RTX 4080-optimised defaults (16 GB VRAM)
+RTX_4080_DEFAULTS = {
+    "micro_batch_size": 8, "grad_accumulation": 2, "lora_rank": 32, "lora_alpha": 64,
+    "cutoff_len": 2048, "training_projection": "q-k-v-o", "lr_scheduler_type": "cosine",
+    "epochs": 5, "learning_rate": "2e-4", "warmup_steps": 100,
+}
+
 statistics = {
 			'loss': [],
 			'lr': [],
@@ -102,6 +138,23 @@ def ui():
             with gr.Column():
                 # YY.MM.DD
                 gr.Markdown("`Ver: 23.10.20 (REV2)` This is enhanced version of QLora Training. [Maintained by FP](https://github.com/FartyPants/Training_PRO/tree/main)")
+
+                with gr.Accordion(label='⚡ Training Presets', open=False):
+                    with gr.Row():
+                        preset_dropdown = gr.Dropdown(
+                            label='Load Preset',
+                            choices=['-- Select Preset --'] + list(TRAINING_PRESETS.keys()),
+                            value='-- Select Preset --',
+                            info='Apply a pre-configured set of training parameters.',
+                            elem_classes=['slim-dropdown'],
+                            scale=4,
+                        )
+                        optimize_rtx_btn = gr.Button('🚀 Optimize for RTX 4080', scale=1)
+                    vram_estimate = gr.Textbox(
+                        label='💾 Estimated VRAM Usage',
+                        value='Select a preset or adjust parameters to estimate VRAM.',
+                        interactive=False,
+                    )
 
                 with gr.Row():
                     with gr.Column(scale=5):
@@ -272,6 +325,46 @@ def ui():
     start_button.click(do_train, all_params, [output,plot_graph])
     stop_button.click(do_interrupt, None, None, queue=False)
     higher_rank_limit.change(change_rank_limit, [higher_rank_limit], [lora_rank, lora_alpha])
+
+    # Preset outputs: rank, alpha, micro_batch, grad_acc, epochs, lr, cutoff, warmup, projection, scheduler, vram_text
+    _preset_outputs = [lora_rank, lora_alpha, micro_batch_size, grad_accumulation, epochs,
+                       learning_rate, cutoff_len, warmup_steps, training_projection,
+                       lr_scheduler_type, vram_estimate]
+
+    def _vram_estimate_text(rank, batch, grad_acc, cutoff):
+        """Rough VRAM estimate for 7B model training (in GB)."""
+        base_gb = 14.0  # ~7B fp16 weights
+        lora_gb = rank * 0.002
+        activation_gb = (batch * cutoff * 0.0004)
+        total = base_gb + lora_gb + activation_gb
+        return f"~{total:.1f} GB estimated (7B model baseline; actual varies by model size and precision)"
+
+    def apply_preset(preset_name):
+        if preset_name not in TRAINING_PRESETS:
+            return [gr.update()] * len(_preset_outputs)
+        p = TRAINING_PRESETS[preset_name]
+        vram_txt = _vram_estimate_text(
+            p["lora_rank"], p["micro_batch_size"], p["grad_accumulation"], p["cutoff_len"]
+        )
+        return [
+            p["lora_rank"], p["lora_alpha"], p["micro_batch_size"], p["grad_accumulation"],
+            p["epochs"], p["learning_rate"], p["cutoff_len"], p["warmup_steps"],
+            p["training_projection"], p["lr_scheduler_type"], vram_txt,
+        ]
+
+    def apply_rtx4080():
+        p = RTX_4080_DEFAULTS
+        vram_txt = _vram_estimate_text(
+            p["lora_rank"], p["micro_batch_size"], p["grad_accumulation"], p["cutoff_len"]
+        )
+        return [
+            p["lora_rank"], p["lora_alpha"], p["micro_batch_size"], p["grad_accumulation"],
+            p["epochs"], p["learning_rate"], p["cutoff_len"], p["warmup_steps"],
+            p["training_projection"], p["lr_scheduler_type"], vram_txt,
+        ]
+
+    preset_dropdown.change(apply_preset, preset_dropdown, _preset_outputs)
+    optimize_rtx_btn.click(apply_rtx4080, None, _preset_outputs)
 
     def trigger_stop_at_loss(stop_at_loss_value):
         non_serialized_params.update({"stop_at_loss": stop_at_loss_value})

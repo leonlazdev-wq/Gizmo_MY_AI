@@ -65,6 +65,16 @@ enhanced_js_path = Path(__file__).resolve().parent / '../js/enhanced.js'
 if enhanced_js_path.exists():
     with open(enhanced_js_path, 'r', encoding='utf-8') as f:
         js += '\n' + f.read()
+
+sidebar_js_path = Path(__file__).resolve().parent / '../js/sidebar.js'
+if sidebar_js_path.exists():
+    with open(sidebar_js_path, 'r', encoding='utf-8') as f:
+        js += '\n' + f.read()
+
+shortcuts_js_path = Path(__file__).resolve().parent / '../js/shortcuts.js'
+if shortcuts_js_path.exists():
+    with open(shortcuts_js_path, 'r', encoding='utf-8') as f:
+        js += '\n' + f.read()
 with open(Path(__file__).resolve().parent / '../js/global_scope_js.js', 'r', encoding='utf-8') as f:
     global_scope_js = f.read()
 with open(Path(__file__).resolve().parent / '../js/save_files.js', 'r', encoding='utf-8') as f:
