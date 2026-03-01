@@ -4,6 +4,7 @@ https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/14184
 '''
 
 import inspect
+import asyncio
 import warnings
 from functools import wraps
 
@@ -20,6 +21,10 @@ orig_create_app = gradio.routes.App.create_app
 # Be strict about only approving access to localhost by default
 def create_app_with_trustedhost(*args, **kwargs):
     app = orig_create_app(*args, **kwargs)
+
+    # Defensive init for Gradio runtime on newer Python versions.
+    if getattr(app, "stop_event", None) is None:
+        app.stop_event = asyncio.Event()
 
     if not (shared.args.listen or shared.args.share):
         app.add_middleware(

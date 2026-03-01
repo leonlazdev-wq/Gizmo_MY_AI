@@ -1,4 +1,5 @@
 import os
+import asyncio
 import shutil
 import warnings
 from pathlib import Path
@@ -64,7 +65,6 @@ from modules import (
     ui_analytics,
     ui_marketplace,
     ui_developer,
-    ui_launch,
     ui_google_slides,
     ui_youtube,
     ui_github_chat,
@@ -136,7 +136,68 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 
+
+
+
+
+def _ensure_queue_runtime_state(queue_obj):
+    if queue_obj is None:
+        return
+    if getattr(queue_obj, "pending_message_lock", None) is None:
+        queue_obj.pending_message_lock = asyncio.Lock()
+    if getattr(queue_obj, "delete_lock", None) is None:
+        queue_obj.delete_lock = asyncio.Lock()
+    if getattr(queue_obj, "pending_event_ids_session", None) is None:
+        queue_obj.pending_event_ids_session = {}
+
+
+def _patch_gradio_queue_runtime():
+    """Defensive monkeypatches for Gradio queue runtime on Python 3.14."""
+    try:
+        import gradio.queueing as gr_queueing
+
+        if not getattr(gr_queueing.Queue.push, '_gizmo_patched', False):
+            _orig_push = gr_queueing.Queue.push
+
+            async def _safe_push(self, *args, **kwargs):
+                _ensure_queue_runtime_state(self)
+                return await _orig_push(self, *args, **kwargs)
+
+            _safe_push._gizmo_patched = True
+            gr_queueing.Queue.push = _safe_push
+
+        if not getattr(gr_queueing.Queue.clean_events, '_gizmo_patched', False):
+            _orig_clean_events = gr_queueing.Queue.clean_events
+
+            async def _safe_clean_events(self, *args, **kwargs):
+                _ensure_queue_runtime_state(self)
+                return await _orig_clean_events(self, *args, **kwargs)
+
+            _safe_clean_events._gizmo_patched = True
+            gr_queueing.Queue.clean_events = _safe_clean_events
+    except Exception as _patch_exc:
+        logger.warning(f"Could not patch Gradio queue runtime: {_patch_exc}")
+
+def _apply_gradio_runtime_guards():
+    """Patch known Gradio 4.37 runtime edge-cases seen on Python 3.14."""
+    try:
+        iface = shared.gradio.get('interface')
+        if not iface:
+            return
+
+        q = getattr(iface, '_queue', None)
+        if q is not None:
+            _ensure_queue_runtime_state(q)
+
+        app = getattr(iface, 'app', None)
+        if app is not None and getattr(app, 'stop_event', None) is None:
+            app.stop_event = asyncio.Event()
+    except Exception as _guard_exc:
+        logger.warning(f"Could not apply Gradio runtime guards: {_guard_exc}")
+
 def create_interface():
+
+    _patch_gradio_queue_runtime()
 
     title = 'Text Generation Web UI'
 
@@ -215,6 +276,8 @@ def create_interface():
 
         # Dark/Light theme toggle button — always visible in top-right corner
         gr.HTML(ui_theme_toggle.get_html())
+        # Custom left-side, scrollable tab navigator mount
+        gr.HTML('<div id="gizmo-sidebar" class="gizmo-sidebar"></div>', elem_id='gizmo-sidebar-mount')
 
         # Interface state
         shared.gradio['interface_state'] = gr.State({k: None for k in shared.input_elements})
@@ -228,9 +291,6 @@ def create_interface():
 
         # Temporary clipboard for saving files
         shared.gradio['temporary_text'] = gr.Textbox(visible=False)
-
-        # Launch overlays / CTA
-        ui_launch.create_ui()
 
         # Chat tab
         ui_dashboard.create_ui()         # Dashboard tab (first)
@@ -327,7 +387,6 @@ def create_interface():
         ui_chat.create_event_handlers()
         ui_chat_folders.create_event_handlers()  # Chat Folders events
         ui_chat_export.create_event_handlers()   # Export Chat events
-        ui_launch.create_event_handlers()
         ui_workflows.create_event_handlers()
         ui_forms.create_event_handlers()
         ui_marketplace.create_event_handlers()
@@ -403,13 +462,13 @@ def create_interface():
 
         shared.gradio['interface'].load(partial(ui.apply_interface_values, {}, use_persistent=True), None, gradio(ui.list_interface_input_elements()), show_progress=False)
 
-        shared.gradio['interface'].load(ui_launch.on_app_ready, None, gradio('launch_status', 'whats_new_modal'), show_progress=False)
 
         extensions_module.create_extensions_tabs()  # Extensions tabs
         extensions_module.create_extensions_block()  # Extensions block
 
     # Launch the interface
     shared.gradio['interface'].queue()
+    _apply_gradio_runtime_guards()
 
     # Apply security headers + OAuth middleware (best-effort)
     try:
@@ -432,6 +491,8 @@ def create_interface():
             root_path=shared.args.subpath,
             allowed_paths=allowed_paths,
         )
+
+    _apply_gradio_runtime_guards()
 
 
 def _load_fedora_config() -> dict:

@@ -3,13 +3,15 @@
 # Gizmo MY-AI  •  Fedora Launch Script
 # ================================================================
 # Usage:
-#   ./start_fedora.sh [--token GITHUB_PAT] [--port PORT] [--cpu-only]
+#   ./start_fedora.sh [--token GITHUB_PAT] [--port PORT] [--host HOST] [--cpu-only] [--share]
 #
 # Flags:
 #   --token PAT  GitHub personal access token — pulls latest code
 #                from GitHub, backs up user data first, then restores
 #   --port N     Override server port (default: 7860)
+#   --host H     Listen host (default: 0.0.0.0 for LAN access)
 #   --cpu-only   Disable GPU (pure CPU inference)
+#   --share      Enable Gradio public URL sharing
 # ================================================================
 set -euo pipefail
 
@@ -20,7 +22,9 @@ cd "$SCRIPT_DIR"
 # Defaults
 # ---------------------------------------------------------------------------
 PORT=7860
+HOST="0.0.0.0"
 CPU_ONLY=0
+SHARE=0
 TOKEN=""
 REPO_URL="https://github.com/leonlazdev-wq/Gizmo_MY_AI.git"
 
@@ -31,7 +35,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --token)    TOKEN="$2"; shift 2 ;;
         --port)     PORT="$2"; shift 2 ;;
+        --host)     HOST="$2"; shift 2 ;;
         --cpu-only) CPU_ONLY=1; shift ;;
+        --share)    SHARE=1; shift ;;
         *) echo "Unknown flag: $1" >&2; shift ;;
     esac
 done
@@ -103,6 +109,9 @@ command -v make &>/dev/null || NEED_PKGS+=(make)
 # python3-devel provides Python.h needed for C extensions
 _PY_INCLUDE="$(python3 -c 'import sysconfig; print(sysconfig.get_path("include"))' 2>/dev/null)"
 [[ ! -f "${_PY_INCLUDE}/Python.h" ]] && NEED_PKGS+=(python3-devel)
+# Pillow build fallback deps
+rpm -q libjpeg-turbo-devel &>/dev/null || NEED_PKGS+=(libjpeg-turbo-devel)
+rpm -q zlib-ng-compat-devel &>/dev/null || NEED_PKGS+=(zlib-ng-compat-devel)
 
 if [[ ${#NEED_PKGS[@]} -gt 0 ]]; then
     echo "🔧  Installing system build dependencies: ${NEED_PKGS[*]}"
@@ -115,7 +124,19 @@ fi
 # ---------------------------------------------------------------------------
 echo "📦  Installing pip dependencies …"
 pip install --upgrade pip
-pip install -r requirements/full/requirements.txt
+
+# Compatibility guard: older local clones may still pin Pillow==11.3.0,
+# which conflicts with gradio 4.37.* (requires pillow<11.0).
+TMP_REQUIREMENTS="$(mktemp)"
+python3 - <<'PYREQ' > "$TMP_REQUIREMENTS"
+from pathlib import Path
+text = Path('requirements/full/requirements.txt').read_text()
+text = text.replace('Pillow==11.3.0; python_version >= "3.14"', 'Pillow==10.4.0; python_version >= "3.14"')
+print(text, end='')
+PYREQ
+
+pip install -r "$TMP_REQUIREMENTS"
+rm -f "$TMP_REQUIREMENTS"
 echo "✅  Dependencies installed."
 
 # ---------------------------------------------------------------------------
@@ -147,17 +168,24 @@ mkdir -p "$MODELS_DIR" \
 # ---------------------------------------------------------------------------
 # Build server.py argument list
 # ---------------------------------------------------------------------------
-PUBLIC_URL="http://localhost:${PORT}"
+PUBLIC_URL="http://${HOST}:${PORT}"
+if [[ "$HOST" == "0.0.0.0" ]]; then
+    LAN_IP=$(hostname -I 2>/dev/null | awk "{print $1}")
+    if [[ -n "${LAN_IP:-}" ]]; then
+        PUBLIC_URL="http://${LAN_IP}:${PORT}"
+    fi
+fi
 
 SERVER_ARGS=(
     python3 server.py
     --listen
-    --listen-host "127.0.0.1"
+    --listen-host "$HOST"
     --listen-port "$PORT"
     --model-dir "$MODELS_DIR"
 )
 
 [[ $CPU_ONLY -eq 1 ]] && SERVER_ARGS+=(--cpu)
+[[ $SHARE -eq 1 ]] && SERVER_ARGS+=(--share)
 
 # ---------------------------------------------------------------------------
 # Print startup banner
@@ -168,13 +196,16 @@ echo "================================================================"
 echo "   Models  → $MODELS_DIR"
 echo "   Cache   → $CACHE_DIR"
 echo "   Logs    → $LOGS_DIR"
+echo "   Host    → $HOST"
 echo "   Port    → $PORT"
 [[ $CPU_ONLY -eq 1 ]] && echo "   Mode    → CPU-only"
+[[ $SHARE -eq 1 ]] && echo "   Access  → Public URL enabled (--share)"
 echo "================================================================"
 
 # ---------------------------------------------------------------------------
 # Launch
 # ---------------------------------------------------------------------------
 echo "✅  Gizmo is running → ${PUBLIC_URL}"
+[[ $SHARE -eq 1 ]] && echo "🌐  Gradio will print a public URL below once startup completes."
 exec "${SERVER_ARGS[@]}"
 
