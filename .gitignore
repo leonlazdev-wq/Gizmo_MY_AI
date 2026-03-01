@@ -18,6 +18,7 @@ user_data/memory.json
 user_data/theme.json
 user_data/flashcards/
 user_data/image_outputs/
+user_data/code_tutor_sessions/
 
 # Test artifacts
 /audit/
