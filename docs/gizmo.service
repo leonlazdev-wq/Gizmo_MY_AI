@@ -1,0 +1,34 @@
+# ============================================================
+# Gizmo MY-AI systemd service template
+#
+# CUSTOMIZE before installing:
+#   - Replace "leon" with your Linux username
+#   - Replace /home/leon/projects/Gizmo/Gizmo_MY_AI with the
+#     actual path where you cloned the repository
+#
+# INSTALL:
+#   sudo cp docs/gizmo.service /etc/systemd/system/gizmo.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now gizmo
+#
+# The EnvironmentFile must exist before starting the service.
+# Create it from user_data/google_oauth.env.template and set
+# restrictive permissions so only the service user can read it:
+#   chmod 600 user_data/google_oauth.env
+# ============================================================
+
+[Unit]
+Description=Gizmo MY-AI Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=leon
+WorkingDirectory=/home/leon/projects/Gizmo/Gizmo_MY_AI
+EnvironmentFile=/home/leon/projects/Gizmo/Gizmo_MY_AI/user_data/google_oauth.env
+ExecStart=/home/leon/projects/Gizmo/Gizmo_MY_AI/start_fedora.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

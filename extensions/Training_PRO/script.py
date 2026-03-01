@@ -109,6 +109,42 @@ train_template = {}
 train_log_graph = []
 train_choices = ["all","q-k-v-o","q-k-v","k-v-down","q-v"]
 
+# Built-in training presets
+TRAINING_PRESETS = {
+    "Quick LoRA": {
+        "lora_rank": 16, "lora_alpha": 32, "micro_batch_size": 4, "grad_accumulation": 2,
+        "epochs": 3, "learning_rate": "3e-4", "cutoff_len": 512, "warmup_steps": 50,
+        "training_projection": "q-v", "lr_scheduler_type": "cosine",
+    },
+    "Deep Memorization": {
+        "lora_rank": 64, "lora_alpha": 128, "micro_batch_size": 2, "grad_accumulation": 4,
+        "epochs": 10, "learning_rate": "1e-4", "cutoff_len": 1024, "warmup_steps": 100,
+        "training_projection": "all", "lr_scheduler_type": "cosine_with_restarts",
+    },
+    "Code Fine-tune": {
+        "lora_rank": 32, "lora_alpha": 64, "micro_batch_size": 4, "grad_accumulation": 2,
+        "epochs": 5, "learning_rate": "2e-4", "cutoff_len": 2048, "warmup_steps": 100,
+        "training_projection": "q-k-v-o", "lr_scheduler_type": "cosine",
+    },
+    "Chat Persona": {
+        "lora_rank": 8, "lora_alpha": 16, "micro_batch_size": 8, "grad_accumulation": 1,
+        "epochs": 4, "learning_rate": "3e-4", "cutoff_len": 512, "warmup_steps": 50,
+        "training_projection": "q-v", "lr_scheduler_type": "linear",
+    },
+    "RTX 4080 Max": {
+        "lora_rank": 32, "lora_alpha": 64, "micro_batch_size": 8, "grad_accumulation": 2,
+        "epochs": 5, "learning_rate": "2e-4", "cutoff_len": 2048, "warmup_steps": 100,
+        "training_projection": "q-k-v-o", "lr_scheduler_type": "cosine",
+    },
+}
+
+# RTX 4080-optimised defaults (16 GB VRAM)
+RTX_4080_DEFAULTS = {
+    "micro_batch_size": 8, "grad_accumulation": 2, "lora_rank": 32, "lora_alpha": 64,
+    "cutoff_len": 2048, "training_projection": "q-k-v-o", "lr_scheduler_type": "cosine",
+    "epochs": 5, "learning_rate": "2e-4", "warmup_steps": 100,
+}
+
 statistics = {
 			'loss': [],
 			'lr': [],
@@ -127,6 +163,23 @@ def ui():
             with gr.Column():
                 # YY.MM.DD
                 gr.Markdown("`Ver: 23.10.20 (REV2)` This is enhanced version of QLora Training. [Maintained by FP](https://github.com/FartyPants/Training_PRO/tree/main)")
+
+                with gr.Accordion(label='⚡ Training Presets', open=False):
+                    with gr.Row():
+                        preset_dropdown = gr.Dropdown(
+                            label='Load Preset',
+                            choices=['-- Select Preset --'] + list(TRAINING_PRESETS.keys()),
+                            value='-- Select Preset --',
+                            info='Apply a pre-configured set of training parameters.',
+                            elem_classes=['slim-dropdown'],
+                            scale=4,
+                        )
+                        optimize_rtx_btn = gr.Button('🚀 Optimize for RTX 4080', scale=1)
+                    vram_estimate = gr.Textbox(
+                        label='💾 Estimated VRAM Usage',
+                        value='Select a preset or adjust parameters to estimate VRAM.',
+                        interactive=False,
+                    )
 
                 with gr.Row():
                     with gr.Column(scale=5):
@@ -317,112 +370,45 @@ def ui():
     stop_button.click(do_interrupt, None, None, queue=False)
     higher_rank_limit.change(change_rank_limit, [higher_rank_limit], [lora_rank, lora_alpha])
 
-    # --- Presets & RTX 4080 event handlers (Gizmo MY-AI) ---
-    _preset_outputs = [lora_rank, lora_alpha, lora_dropout, epochs, learning_rate, lr_scheduler_type,
-                       micro_batch_size, grad_accumulation, cutoff_len, training_projection,
-                       neft_noise_alpha, warmup_steps, preset_status]
+    # Preset outputs: rank, alpha, micro_batch, grad_acc, epochs, lr, cutoff, warmup, projection, scheduler, vram_text
+    _preset_outputs = [lora_rank, lora_alpha, micro_batch_size, grad_accumulation, epochs,
+                       learning_rate, cutoff_len, warmup_steps, training_projection,
+                       lr_scheduler_type, vram_estimate]
 
-    def _do_load_preset(name):
-        if not _HAS_PRESETS:
-            return [gr.update()] * (len(_preset_outputs) - 1) + ["⚠️ training_presets module not available."]
-        cfg = load_preset(name)
-        if cfg is None:
-            return [gr.update()] * (len(_preset_outputs) - 1) + [f"⚠️ Preset '{name}' not found."]
+    def _vram_estimate_text(rank, batch, grad_acc, cutoff):
+        """Rough VRAM estimate for 7B model training (in GB)."""
+        base_gb = 14.0  # ~7B fp16 weights
+        lora_gb = rank * 0.002
+        activation_gb = (batch * cutoff * 0.0004)
+        total = base_gb + lora_gb + activation_gb
+        return f"~{total:.1f} GB estimated (7B model baseline; actual varies by model size and precision)"
+
+    def apply_preset(preset_name):
+        if preset_name not in TRAINING_PRESETS:
+            return [gr.update()] * len(_preset_outputs)
+        p = TRAINING_PRESETS[preset_name]
+        vram_txt = _vram_estimate_text(
+            p["lora_rank"], p["micro_batch_size"], p["grad_accumulation"], p["cutoff_len"]
+        )
         return [
-            gr.update(value=cfg.get("lora_rank", gr.update())),
-            gr.update(value=cfg.get("lora_alpha", gr.update())),
-            gr.update(value=cfg.get("lora_dropout", gr.update())),
-            gr.update(value=cfg.get("epochs", gr.update())),
-            gr.update(value=cfg.get("learning_rate", gr.update())),
-            gr.update(value=cfg.get("lr_scheduler_type", gr.update())),
-            gr.update(value=cfg.get("micro_batch_size", gr.update())),
-            gr.update(value=cfg.get("grad_accumulation", gr.update())),
-            gr.update(value=cfg.get("cutoff_len", gr.update())),
-            gr.update(value=cfg.get("training_projection", gr.update())),
-            gr.update(value=cfg.get("neft_noise_alpha", gr.update())),
-            gr.update(value=cfg.get("warmup_steps", gr.update())),
-            f"✅ Loaded preset: **{name}**",
+            p["lora_rank"], p["lora_alpha"], p["micro_batch_size"], p["grad_accumulation"],
+            p["epochs"], p["learning_rate"], p["cutoff_len"], p["warmup_steps"],
+            p["training_projection"], p["lr_scheduler_type"], vram_txt,
         ]
 
-    def _do_save_preset(name, rank, alpha, dropout, ep, lr, sched, mbs, gacc, cut, proj, neft, wu):
-        if not _HAS_PRESETS:
-            return "⚠️ training_presets module not available."
-        if not name.strip():
-            return "⚠️ Enter a preset name first."
-        cfg = {
-            "lora_rank": rank, "lora_alpha": alpha, "lora_dropout": dropout,
-            "epochs": ep, "learning_rate": lr, "lr_scheduler_type": sched,
-            "micro_batch_size": mbs, "grad_accumulation": gacc, "cutoff_len": cut,
-            "training_projection": proj, "neft_noise_alpha": neft, "warmup_steps": wu,
-        }
-        ok = save_preset(name, cfg)
-        if ok:
-            return f"✅ Saved preset: **{name}**"
-        return f"❌ Failed to save preset '{name}'."
-
-    def _do_delete_preset(name):
-        if not _HAS_PRESETS:
-            return "⚠️ training_presets module not available.", gr.update()
-        ok = delete_preset(name)
-        new_choices = list_presets() if _HAS_PRESETS else []
-        if ok:
-            return f"✅ Deleted preset: **{name}**", gr.update(choices=new_choices, value='None')
-        return f"⚠️ Preset '{name}' not found.", gr.update(choices=new_choices)
-
-    def _do_rtx4080():
-        if not _HAS_RTX4080:
-            return [gr.update()] * (len(_preset_outputs) - 1) + ["⚠️ rtx4080_optimizer module not available."]
-        cfg = get_rtx4080_defaults()
+    def apply_rtx4080():
+        p = RTX_4080_DEFAULTS
+        vram_txt = _vram_estimate_text(
+            p["lora_rank"], p["micro_batch_size"], p["grad_accumulation"], p["cutoff_len"]
+        )
         return [
-            gr.update(value=cfg.get("lora_rank", gr.update())),
-            gr.update(value=cfg.get("lora_alpha", gr.update())),
-            gr.update(value=cfg.get("lora_dropout", gr.update())),
-            gr.update(value=cfg.get("epochs", gr.update())),
-            gr.update(value=cfg.get("learning_rate", gr.update())),
-            gr.update(value=cfg.get("lr_scheduler_type", gr.update())),
-            gr.update(value=cfg.get("micro_batch_size", gr.update())),
-            gr.update(value=cfg.get("grad_accumulation", gr.update())),
-            gr.update(value=cfg.get("cutoff_len", gr.update())),
-            gr.update(value=cfg.get("training_projection", gr.update())),
-            gr.update(value=cfg.get("neft_noise_alpha", gr.update())),
-            gr.update(value=cfg.get("warmup_steps", gr.update())),
-            "✅ RTX 4080 optimal settings applied.",
+            p["lora_rank"], p["lora_alpha"], p["micro_batch_size"], p["grad_accumulation"],
+            p["epochs"], p["learning_rate"], p["cutoff_len"], p["warmup_steps"],
+            p["training_projection"], p["lr_scheduler_type"], vram_txt,
         ]
 
-    def _do_add_queue(lora_name_val, *params):
-        if not _HAS_QUEUE:
-            return "⚠️ training_queue module not available."
-        try:
-            config_snapshot = dict(zip(
-                ["lora_name", "always_override", "save_steps", "micro_batch_size", "batch_size",
-                 "epochs", "learning_rate", "lr_scheduler_type", "lora_rank", "lora_alpha",
-                 "lora_dropout", "cutoff_len", "dataset", "eval_dataset", "format", "eval_steps",
-                 "raw_text_file", "higher_rank_limit", "warmup_steps", "optimizer",
-                 "hard_cut_string", "train_only_after", "stop_at_loss", "add_eos_token",
-                 "min_chars", "report_to", "precize_slicing_overlap", "add_eos_token_type",
-                 "save_steps_under_loss", "add_bos_token", "training_projection",
-                 "sliding_window", "warmup_ratio", "grad_accumulation", "neft_noise_alpha"],
-                [lora_name_val] + list(params),
-            ))
-            job = TrainingJob(
-                name=lora_name_val or "unnamed",
-                fn=do_train,
-                kwargs=config_snapshot,
-            )
-            _jobs.append(job)
-            return f"✅ Added **{lora_name_val or 'unnamed'}** to training queue ({len(_jobs)} job(s) queued)."
-        except Exception as exc:
-            return f"❌ Queue error: {exc}"
-
-    _save_preset_inputs = [preset_name_box, lora_rank, lora_alpha, lora_dropout, epochs,
-                           learning_rate, lr_scheduler_type, micro_batch_size, grad_accumulation,
-                           cutoff_len, training_projection, neft_noise_alpha, warmup_steps]
-
-    load_preset_btn.click(_do_load_preset, [preset_dropdown], _preset_outputs)
-    save_preset_btn.click(_do_save_preset, _save_preset_inputs, [preset_status])
-    delete_preset_btn.click(_do_delete_preset, [preset_dropdown], [preset_status, preset_dropdown])
-    rtx4080_btn.click(_do_rtx4080, [], _preset_outputs)
-    queue_button.click(_do_add_queue, [lora_name] + all_params[1:], [output])
+    preset_dropdown.change(apply_preset, preset_dropdown, _preset_outputs)
+    optimize_rtx_btn.click(apply_rtx4080, None, _preset_outputs)
 
     def trigger_stop_at_loss(stop_at_loss_value):
         non_serialized_params.update({"stop_at_loss": stop_at_loss_value})
