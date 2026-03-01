@@ -78,19 +78,7 @@ Linux/Fedora quick start from a fresh terminal:
 
 ```bash
 cd ~/projects/Gizmo
-
-# 1) Create venv once (safe to re-run)
-python3 -m venv venv
 source venv/bin/activate
-
-# 2) System deps for native wheels/build fallback
-sudo dnf install -y gcc-c++ gcc make python3-devel libjpeg-turbo-devel zlib-devel
-
-# 3) Install Python deps
-pip install --upgrade pip
-pip install -r requirements/full/requirements.txt
-
-# 4) Launch (prints a public Gradio URL)
 python3 server.py --listen --listen-host 127.0.0.1 --listen-port 7860 --share --model-dir ./storage/models
 ```
 
@@ -1429,19 +1417,7 @@ Linux/Fedora quick start from a fresh terminal:
 
 ```bash
 cd ~/projects/Gizmo
-
-# 1) Create venv once (safe to re-run)
-python3 -m venv venv
 source venv/bin/activate
-
-# 2) System deps for native wheels/build fallback
-sudo dnf install -y gcc-c++ gcc make python3-devel libjpeg-turbo-devel zlib-devel
-
-# 3) Install Python deps
-pip install --upgrade pip
-pip install -r requirements/full/requirements.txt
-
-# 4) Launch (prints a public Gradio URL)
 python3 server.py --listen --listen-host 127.0.0.1 --listen-port 7860 --share --model-dir ./storage/models
 ```
 
