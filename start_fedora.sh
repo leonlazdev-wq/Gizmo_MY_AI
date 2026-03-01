@@ -94,11 +94,28 @@ source ./venv/bin/activate
 echo "🐍  Virtual environment activated"
 
 # ---------------------------------------------------------------------------
+# Ensure system build dependencies are installed (needed by numpy, scipy, etc.)
+# ---------------------------------------------------------------------------
+NEED_PKGS=()
+command -v g++  &>/dev/null || NEED_PKGS+=(gcc-c++)
+command -v gcc  &>/dev/null || NEED_PKGS+=(gcc)
+command -v make &>/dev/null || NEED_PKGS+=(make)
+# python3-devel provides Python.h needed for C extensions
+_PY_INCLUDE="$(python3 -c 'import sysconfig; print(sysconfig.get_path("include"))' 2>/dev/null)"
+[[ ! -f "${_PY_INCLUDE}/Python.h" ]] && NEED_PKGS+=(python3-devel)
+
+if [[ ${#NEED_PKGS[@]} -gt 0 ]]; then
+    echo "🔧  Installing system build dependencies: ${NEED_PKGS[*]}"
+    echo "    (sudo may ask for your password)"
+    sudo dnf install -y "${NEED_PKGS[@]}"
+fi
+
+# ---------------------------------------------------------------------------
 # Install / upgrade pip dependencies
 # ---------------------------------------------------------------------------
 echo "📦  Installing pip dependencies …"
-pip install --upgrade pip --quiet
-pip install -r requirements/full/requirements.txt --quiet
+pip install --upgrade pip
+pip install -r requirements/full/requirements.txt
 echo "✅  Dependencies installed."
 
 # ---------------------------------------------------------------------------
@@ -138,7 +155,6 @@ SERVER_ARGS=(
     --listen-host "127.0.0.1"
     --listen-port "$PORT"
     --model-dir "$MODELS_DIR"
-    --dev
 )
 
 [[ $CPU_ONLY -eq 1 ]] && SERVER_ARGS+=(--cpu)
@@ -154,7 +170,6 @@ echo "   Cache   → $CACHE_DIR"
 echo "   Logs    → $LOGS_DIR"
 echo "   Port    → $PORT"
 [[ $CPU_ONLY -eq 1 ]] && echo "   Mode    → CPU-only"
-echo "   Auth    → DISABLED (local dev mode)"
 echo "================================================================"
 
 # ---------------------------------------------------------------------------
