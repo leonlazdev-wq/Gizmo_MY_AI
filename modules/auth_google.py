@@ -182,7 +182,7 @@ _ACCESS_DENIED_HTML = (
     b"p{color:#999;line-height:1.6}a{color:#6C63FF;text-decoration:none}\n"
     b"</style></head><body><div class=\"card\">\n"
     b"<h1>Access Denied</h1>\n"
-    b"<p>Your Google account is not authorised to access <strong>Gizmo MY-AI</strong>.</p>\n"
+    b"<p>Your Google account is not authorized to access <strong>Gizmo MY-AI</strong>.</p>\n"
     b"<p>Contact the owner to request access, then <a href=\"/logout\">try again</a>.</p>\n"
     b"</div></body></html>"
 )

@@ -173,8 +173,8 @@ sudo journalctl -fu gizmo   # follow logs
 3. Navigate to **APIs & Services → Credentials**.
 4. Click **Create Credentials → OAuth 2.0 Client IDs**.
 5. Application type: **Web application**.
-6. Authorised JavaScript origins: `https://gizmohub.ai`
-7. Authorised redirect URIs: `https://gizmohub.ai/oauth/callback`
+6. Authorized JavaScript origins: `https://gizmohub.ai`
+7. Authorized redirect URIs: `https://gizmohub.ai/oauth/callback`
 8. Copy **Client ID** and **Client Secret** into `user_data/google_oauth.env`:
 
 ```bash
