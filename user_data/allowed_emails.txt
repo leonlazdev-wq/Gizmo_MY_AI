@@ -1,0 +1,7 @@
+# Gizmo MY-AI — Allowed Users
+# Add one Gmail address per line.
+# No restart needed — checked on every login.
+# The FIRST email in this list is the admin/owner.
+#
+#leon.laz.dev@gmail.com
+#utbleolaz3@skola.malmo.se
