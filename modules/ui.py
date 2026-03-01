@@ -53,6 +53,11 @@ enhanced_css_path = Path(__file__).resolve().parent / '../css/enhanced.css'
 if enhanced_css_path.exists():
     with open(enhanced_css_path, 'r', encoding='utf-8') as f:
         css += f.read()
+
+modern_theme_path = Path(__file__).resolve().parent / '../css/theme-gizmo-modern.css'
+if modern_theme_path.exists():
+    with open(modern_theme_path, 'r', encoding='utf-8') as f:
+        css += f.read()
 with open(Path(__file__).resolve().parent / '../js/main.js', 'r', encoding='utf-8') as f:
     js = f.read()
 

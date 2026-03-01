@@ -5,6 +5,7 @@
 
 # user_data — ignore secrets and generated data, but track template files
 user_data/google_oauth.env
+user_data/allowed_emails.txt
 user_data/sessions/
 user_data/api_keys.json
 user_data/queue_state.json
